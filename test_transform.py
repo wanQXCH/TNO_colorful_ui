@@ -129,7 +129,30 @@ for i, (r, g_, b) in enumerate(samples9):
         if abs(sc[0] - nr) > 1 or abs(sc[1] - ng) > 1 or abs(sc[2] - nb) > 1:
             bad9 += 1
 check("darken scalar/numpy equivalence (504 colors)", bad9 == 0)
-check("darken darkens white in numpy", out9[0][2] < 200, str(out9[0].tolist()))
+check("darken darkens white in numpy", out9[0][2] < 200)
+
+# 10. 平滑压暗：近白过渡区无硬阈值，亮度噪声不会产生突兀暗点
+rng = np.random.default_rng(5)
+img10 = np.zeros((32, 32, 4), dtype=np.uint8)
+base10 = 240 + rng.integers(-6, 7, size=(32, 32))
+img10[:, :, :3] = base10[:, :, None]
+img10[:, :, 3] = 255
+nb10 = g.apply_transform(p9, img10.tobytes(), 32, 32)
+n10 = np.frombuffer(nb10, dtype=np.uint8).astype(int).reshape(32, 32, 4)
+lum10 = 0.299 * n10[:, :, 2] + 0.587 * n10[:, :, 1] + 0.114 * n10[:, :, 0]
+diff10 = np.abs(lum10[1:-1, 1:-1] - np.median(lum10, axis=(0, 1)))
+check("smooth darken: no abrupt pixels", int((diff10 > 60).sum()) == 0)
+
+# 11. 照片识别：复杂度阈值
+rng11 = np.random.default_rng(1)
+img11 = np.zeros((100, 100, 4), dtype=np.uint8)
+img11[:, :, :3] = rng11.integers(0, 256, size=(100, 100, 3))   # 噪点图 ≈ 照片复杂度
+img11[:, :, 3] = 255
+img12 = np.zeros((100, 100, 4), dtype=np.uint8)
+img12[:, :, :3] = 89
+img12[:, :, 3] = 255                                             # 纯色 chrome
+check("photo complexity detected", g.texture_complexity(img11.tobytes(), 100, 100) > g.PHOTO_MAX_COLORS)
+check("chrome complexity low", g.texture_complexity(img12.tobytes(), 100, 100) <= g.PHOTO_MAX_COLORS)
 
 print("\n%s" % ("ALL PASS" if fails == 0 else "%d FAILURES" % fails))
 sys.exit(1 if fails else 0)

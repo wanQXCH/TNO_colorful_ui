@@ -104,17 +104,32 @@ def _map_lightness(p, l, l_hi):
     return min(nl, 1.0)
 
 
+def _darken_weight(l, s):
+    """压暗权重（0..1）：越亮、越灰的像素压得越多。
+    用连续平滑过渡替代硬阈值，避免纸张/渐变纹理上出现突兀的暗色噪点。"""
+    wl = min(1.0, max(0.0, (l - 0.72) / 0.08))     # l: 0.72 -> 0.80 渐入
+    ws = min(1.0, max(0.0, (0.07 - s) / 0.03))     # s: 0.04 -> 0.07 渐入
+    return wl * ws
+
+
 def transform_scalar(p, r, g, b, l_hi=None):
     """单像素变换。返回 (r,g,b) 或 None(不变)。用 colorsys，作为参照实现。
     色相向目标色收敛（带权重），饱和度按比例缩放，明度锚定映射。
+    亮灰/白色压暗为平滑加权（无硬阈值，不产生突兀暗点）。
     l_hi: 该贴图蓝青像素亮度的上分位数（逐贴图自适应，保留亮部层次）。"""
     h, l, s = colorsys.rgb_to_hls(r / 255.0, g / 255.0, b / 255.0)
     darken = p["darken"]
-    if darken > 0 and s < 0.06 and l > 0.75:
-        l = l + (0.52 - l) * darken
-        return tuple(int(round(c * 255)) for c in colorsys.hls_to_rgb(h, l, s))
+    darkened = False
+    if darken > 0:
+        dw = _darken_weight(l, s)
+        if dw > 0:
+            l = l + (0.52 - l) * darken * dw
+            darkened = True
     w = _band_weight(h * 360.0)
     if w <= 1e-6 or s < MIN_SAT or l < MIN_LIGHT or l > MAX_LIGHT:
+        # 不在色带内：压暗过的像素返回压暗后的颜色，其余不变
+        if darkened:
+            return tuple(int(round(c * 255)) for c in colorsys.hls_to_rgb(h, l, s))
         return None
     # 色相：向目标色相收敛（而非整体旋转——旋转会把色带两端甩到红/黄绿，产生条纹噪点）
     dh = (p["t_h"] - h) % 1.0
@@ -176,13 +191,15 @@ def transform_numpy(p, bgra, l_hi=None):
     h, l, s = _np_hls(r, g, b)
     darken = p["darken"]
     if darken > 0:
-        mask_w = (s < 0.06) & (l > 0.75)
-        nl_w = np.where(mask_w, l + (0.52 - l) * darken, l)
-        nr, ng, nb = _np_rgb(h, nl_w, s)
-        base = np.stack([nb, ng, nr], axis=1)          # 0..1
+        # 平滑压暗权重（无硬阈值，不产生突兀暗点），先调整明度再走色带映射
+        wl = np.clip((l - 0.72) / 0.08, 0.0, 1.0)
+        ws = np.clip((0.07 - s) / 0.03, 0.0, 1.0)
+        dw = wl * ws
+        l_adj = np.where(dw > 0, l + (0.52 - l) * darken * dw, l)
+        darkened = dw > 0
     else:
-        mask_w = np.zeros_like(s, dtype=bool)
-        base = None
+        l_adj = l
+        darkened = np.zeros_like(l, dtype=bool)
     hdeg = h * 360.0
     w = np.zeros_like(h)
     m_full = (hdeg >= BAND_FULL_LO) & (hdeg <= BAND_FULL_HI)
@@ -193,7 +210,7 @@ def transform_numpy(p, bgra, l_hi=None):
     w = np.where(m_lo, 0.5 * (1.0 - np.cos(np.pi * t)), w)
     t = np.clip((hdeg - BAND_FULL_HI) / (BAND_ZERO_HI - BAND_FULL_HI), 0.0, 1.0)
     w = np.where(m_hi, 0.5 * (1.0 + np.cos(np.pi * t)), w)
-    keep = (w > 1e-6) & (s >= MIN_SAT) & (l >= MIN_LIGHT) & (l <= MAX_LIGHT)
+    keep = (w > 1e-6) & (s >= MIN_SAT) & (l_adj >= MIN_LIGHT) & (l_adj <= MAX_LIGHT)
     # 色相向目标色收敛（带权重）+ 饱和度缩放 + 亮度映射（保留层次，参考蓝 -> 目标色）
     dh = (p["t_h"] - h) % 1.0
     dh = np.where(dh > 0.5, dh - 1.0, dh)
@@ -201,24 +218,27 @@ def transform_numpy(p, bgra, l_hi=None):
     ns = np.minimum(1.0, s * p["sat_scale"])
     ref_l = p["ref_l"]
     if p["k"] > 1.0 and l_hi is not None and l_hi > ref_l:
-        up = l > ref_l
-        tt = np.clip((l - ref_l) / (l_hi - ref_l), 0.0, 1.0)
+        up = l_adj > ref_l
+        tt = np.clip((l_adj - ref_l) / (l_hi - ref_l), 0.0, 1.0)
         nlu = (p["t_l"] / p["k"]) + tt * (1.0 - p["t_l"] / p["k"])
-        nlb = l * (p["t_l"] / ref_l) / p["k"]
+        nlb = l_adj * (p["t_l"] / ref_l) / p["k"]
         nl = np.where(up, nlu, nlb)
     else:
-        nl = l * (p["t_l"] / ref_l) / p["k"]
+        nl = l_adj * (p["t_l"] / ref_l) / p["k"]
     nl = np.minimum(nl, 1.0)
     nr, ng, nb = _np_rgb(nh, nl, ns)
     colored = np.stack([nb, ng, nr], axis=1)
     mixed = colored * w[:, None] + bgr * (1.0 - w)[:, None]
     if darken > 0:
-        out = np.where(mask_w[:, None], base, mixed)
+        # 被压暗像素：原色相 + 压暗后明度（与 scalar 一致）
+        nr2, ng2, nb2 = _np_rgb(h, l_adj, s)
+        base = np.stack([nb2, ng2, nr2], axis=1)
+        out = np.where(darkened[:, None], base, mixed)
     else:
         out = mixed
     result = np.empty_like(bgra, dtype=np.float32)
-    # 压暗白色优先于色带 keep 判定（否则白色像素被 keep=False 送回原色）
-    sel = keep | mask_w
+    # 压暗优先于色带 keep 判定（否则白色像素被 keep=False 送回原色）
+    sel = keep | darkened
     result[:, :3] = np.where(sel[:, None], out * 255.0, bgr * 255.0)
     result[:, 3] = a.astype(np.float32)
     return np.clip(result, 0, 255).astype(np.uint8)
@@ -287,6 +307,25 @@ def inband_l_hi(bgra_bytes, w, h, max_sample=40000):
 
 def _ref_l_of():
     return colorsys.rgb_to_hls(*(c / 255.0 for c in REF_BLUE))[1]
+
+
+def texture_complexity(bgra_bytes, w, h, max_sample=30000):
+    """采样去重色数：照片/大幅背景通常数万色，UI 界面元素通常数百到数千色。"""
+    n = w * h
+    stride = max(1, n // max_sample)
+    if HAS_NUMPY:
+        arr = _np.frombuffer(bgra_bytes, dtype=_np.uint8).reshape(-1, 4)[::stride]
+        vis = arr[:, 3] >= 16
+        if not vis.any():
+            return 0
+        return int(_np.unique(arr[vis, :3], axis=0).shape[0])
+    seen = set()
+    for i in range(0, n, stride):
+        off = i * 4
+        if bgra_bytes[off + 3] < 16:
+            continue
+        seen.add(bgra_bytes[off:off + 3])
+    return len(seen)
 
 
 def count_blue(bgra_bytes, w, h, max_sample=40000):
@@ -954,6 +993,10 @@ EXCLUDE_DIRS = {
 
 BLUE_MIN_COUNT = 12      # 至少这么多蓝色像素
 BLUE_MIN_FRAC = 0.006    # 且占非透明像素比例不低于此
+PHOTO_MAX_COLORS = 4000      # 采样去重色数超过此值视为照片/大幅背景，整体跳过不换色
+PHOTO_MAX_COLORS_LARGE = 2500  # 大图（超过 PHOTO_MIN_AREA 像素）的复杂度阈值（收紧）
+PHOTO_MIN_AREA = 300000       # 大图面积阈值（约 550x550）
+                              # （照片里的天空/水面等局部蓝色不应被目标色替代）
 
 
 def classify_file(rel):
@@ -1117,6 +1160,12 @@ def scan_and_build(roots, params, out_root,
             continue
         if bgra is None:
             stats["skipped_dir"] += 1
+            continue
+        # 照片/大幅背景识别：采样去重色数过高视为照片（天空/水面等局部蓝色不换色）；
+        # 大图（面积超过阈值）收紧复杂度阈值，避免大幅背景被误处理
+        tc = texture_complexity(bgra, w, h)
+        if tc > PHOTO_MAX_COLORS or (w * h > PHOTO_MIN_AREA and tc > PHOTO_MAX_COLORS_LARGE):
+            stats["photo_skip"] = stats.get("photo_skip", 0) + 1
             continue
         blue, opaque = count_blue(bgra, w, h)
         if blue >= BLUE_MIN_COUNT and (blue / max(1, opaque)) >= BLUE_MIN_FRAC:
