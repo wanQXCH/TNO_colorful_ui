@@ -30,17 +30,18 @@ python tno_color_gen.py
    - 生成的 Mod 文件夹 + `.mod` 文件
    - `preview.png` —— 原版/换色后对照图，不用进游戏即可预览效果
 
-默认输出 DXT5 压缩贴图（体积约 400~500 MB，原版游戏 UI 同款格式）；
-取消勾选“压缩输出”则输出未压缩 32 位贴图（体积约 1.9 GB，与 TNO 自带格式一致）。
+**默认输出未压缩 32 位 BGRA 贴图**（与 TNO 本体 UI 完全一致，零压缩瑕疵，
+体积约 1.7 GB）——DXT5 块状压缩会在细线条/渐变上产生纯色噪点与明暗条纹，
+因此不再作为默认；如确需缩小体积可勾选“压缩输出 DXT5”（体积约小 4 倍，可能有瑕疵）。
 
 ### 方式二：命令行
 
 ```
 # 生成橙色（TNO 本体 + 汉化 mod 一起处理）
-python tno_color_gen.py --tno 2980739000 --overlay 2243912940 --preset orange --out TNO_UI_Orange
+python tno_color_gen.py --tno "D:\heart of iron\SW00383\langou123\hoi4\mod\2438003901" --overlay "D:\heart of iron\SW00383\langou123\hoi4\mod\2243912940" --preset orange --out TNO_UI_Orange
 
 # 自定义颜色（纯白，严格按输入色输出）
-python tno_color_gen.py --tno 2980739000 --overlay 2243912940 --color "#FFFFFF" --out TNO_UI_White
+python tno_color_gen.py --color "#FFFFFF" --out TNO_UI_White
 
 # 暗色系风格（把白色压暗 40%）
 python tno_color_gen.py --tno 2980739000 --overlay 2243912940 --color "#654680" --darken 0.4 --out TNO_UI_DarkPurple
@@ -74,7 +75,8 @@ TNO 界面贴图（`.dds` 绝大多数为未压缩 32 位 BGRA，另有少量 24
 - **加载界面/游戏内文字颜色**也会一起换：`interface/*.gfx` 字体定义里的蓝青色
   `textcolors`（如加载界面默认文字色 `D = { 89 199 194 }`）会被替换为目标色；
   没有 D 默认色键的字体文件（如汉化版字体）会自动补上 `D = 目标色`；
-- 输出统一写为 DXT5 压缩 DDS（可选未压缩 32 位）/ 同规格 TGA / PNG，兼容性最好。
+- 输出统一写为**未压缩 32 位 BGRA DDS**（与 TNO 本体一致，零压缩瑕疵；
+  可选 DXT5 压缩）/ 同规格 TGA / PNG，兼容性最好。
 
 可选“压暗亮灰/白色”选项可复刻旧 dark purple mod 的整体变暗风格。
 

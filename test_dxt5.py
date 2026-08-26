@@ -47,5 +47,18 @@ for rel in samples:
     check("quality %s" % os.path.basename(rel), rgb_err < 12 and a_err_hard < 6,
           "rgb=%.2f alpha=%.2f" % (rgb_err, a_err_hard))
 
+# 10. 扁平块回归：c0==c1 时解码器按 3 色模式解释、索引 3=透明黑（曾导致全图纯黑噪点/条纹）
+for _rgb in [(36, 166, 243), (200, 200, 200), (245, 165, 36)]:
+    _img = np.zeros((8, 8, 4), dtype=np.uint8)
+    _img[:, :, :3] = _rgb
+    _img[:, :, 3] = 255
+    _tmp = "_flat.dds"
+    g.write_dds_dxt5(_tmp, 8, 8, _img.tobytes())
+    _, _, _dec, _ = g.read_dds(_tmp)
+    os.remove(_tmp)
+    _d = np.frombuffer(_dec, dtype=np.uint8).astype(int).reshape(-1, 4)
+    _black = int(((_d[:, 0] == 0) & (_d[:, 1] == 0) & (_d[:, 2] == 0)).sum())
+    check("flat block no black %s" % (_rgb,), _black == 0, "%d black" % _black)
+
 print("\n%s" % ("ALL PASS" if fails == 0 else "%d FAILURES" % fails))
 sys.exit(1 if fails else 0)

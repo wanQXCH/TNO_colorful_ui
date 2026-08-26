@@ -86,8 +86,7 @@ def make_params(target_rgb, darken_whites=0.0):
     return {
         "target": tuple(target_rgb),
         "ref_l": ref_l,
-        "t_l": t_l,
-        "dh": (t_h - ref_h) % 1.0,
+        "t_h": t_h, "t_l": t_l, "t_s": t_s,
         "sat_scale": (t_s / ref_s) if ref_s > 0 else 0.0,
         "k": k,
         "darken": max(0.0, min(1.0, darken_whites)),
@@ -107,6 +106,7 @@ def _map_lightness(p, l, l_hi):
 
 def transform_scalar(p, r, g, b, l_hi=None):
     """单像素变换。返回 (r,g,b) 或 None(不变)。用 colorsys，作为参照实现。
+    色相向目标色收敛（带权重），饱和度按比例缩放，明度锚定映射。
     l_hi: 该贴图蓝青像素亮度的上分位数（逐贴图自适应，保留亮部层次）。"""
     h, l, s = colorsys.rgb_to_hls(r / 255.0, g / 255.0, b / 255.0)
     darken = p["darken"]
@@ -116,7 +116,11 @@ def transform_scalar(p, r, g, b, l_hi=None):
     w = _band_weight(h * 360.0)
     if w <= 1e-6 or s < MIN_SAT or l < MIN_LIGHT or l > MAX_LIGHT:
         return None
-    nh = (h + p["dh"]) % 1.0
+    # 色相：向目标色相收敛（而非整体旋转——旋转会把色带两端甩到红/黄绿，产生条纹噪点）
+    dh = (p["t_h"] - h) % 1.0
+    if dh > 0.5:
+        dh -= 1.0
+    nh = (h + dh * w) % 1.0
     ns = min(1.0, s * p["sat_scale"])
     nl = _map_lightness(p, l, l_hi)
     out = colorsys.hls_to_rgb(nh, nl, ns)
@@ -190,8 +194,10 @@ def transform_numpy(p, bgra, l_hi=None):
     t = np.clip((hdeg - BAND_FULL_HI) / (BAND_ZERO_HI - BAND_FULL_HI), 0.0, 1.0)
     w = np.where(m_hi, 0.5 * (1.0 + np.cos(np.pi * t)), w)
     keep = (w > 1e-6) & (s >= MIN_SAT) & (l >= MIN_LIGHT) & (l <= MAX_LIGHT)
-    # 色相旋转 + 饱和度缩放 + 亮度映射（保留层次，参考蓝 -> 目标色）
-    nh = (h + p["dh"]) % 1.0
+    # 色相向目标色收敛（带权重）+ 饱和度缩放 + 亮度映射（保留层次，参考蓝 -> 目标色）
+    dh = (p["t_h"] - h) % 1.0
+    dh = np.where(dh > 0.5, dh - 1.0, dh)
+    nh = (h + dh * w) % 1.0
     ns = np.minimum(1.0, s * p["sat_scale"])
     ref_l = p["ref_l"]
     if p["k"] > 1.0 and l_hi is not None and l_hi > ref_l:
@@ -580,8 +586,12 @@ def encode_dxt5_np(bgra):
     c1 = e1.astype(np.float32)
     cols = np.stack([c0, c1, (2.0 * c0 + c1) / 3.0, (c0 + 2.0 * c1) / 3.0], axis=1)
     d2 = ((rgb[:, None, :, :] - cols[:, :, None, :]) ** 2).sum(axis=-1)
-    # 透明像素(alpha<8)颜色无意义，归到索引 0，避免随机噪声
     ci = d2.argmin(axis=1)                       # (B,16)
+    # 关键：c0==c1（565 量化后相同）时解码器按 3 色模式解释，
+    # 索引 3 会解码为“透明黑”——扁平块必须强制索引 0，否则出现纯黑噪点/条纹
+    flat = v0 == v1
+    ci = np.where(flat[:, None], 0, ci)
+    # 透明像素(alpha<8)颜色无意义，归到索引 0，避免随机噪声
     ci = np.where(vis, ci, 0)
     packed = np.zeros(len(ci), dtype=np.uint32)
     for i in range(16):
@@ -1042,9 +1052,11 @@ def read_image(tno_root, rel, kind):
     return w, h, bgra, ("png",)
 
 
-def write_image(out_root, rel, kind, w, h, bgra, meta, compress=True):
+def write_image(out_root, rel, kind, w, h, bgra, meta, compress=False):
     """按内容格式写出（PNG 内容的 .dds 也写回 PNG，保持原样兼容）。
-    compress=True 时 DDS 写为 DXT5（体积约 1/4，原版游戏 UI 同款格式）。"""
+    默认写未压缩 32 位 BGRA（与 TNO 本体 UI 一致，零压缩瑕疵）；
+    仅当 compress=True 且装有 numpy 时才写 DXT5（体积约 1/4，但 4x4 块状
+    压缩会在细线条/渐变上产生噪点与条纹，不推荐）。"""
     path = os.path.join(out_root, rel)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     fmt = meta[0]
@@ -1077,7 +1089,7 @@ def collect_file_map(roots):
 
 def scan_and_build(roots, params, out_root,
                    progress_cb=None, log_cb=None, want_list=False, dry_run=False,
-                   compress=True):
+                   compress=False):
     """扫描多源 gfx，把蓝色贴图换色后写入 out_root。返回统计信息。"""
     log = log_cb or (lambda s: None)
     stats = {"scanned": 0, "blue": 0, "skipped_dir": 0, "unsupported": 0,
@@ -1290,7 +1302,7 @@ def mod_name_from_descriptor(root):
 
 
 def generate_mod(roots, target_rgb, out_root, mod_name=None, darken=0.0,
-                 compress=True, progress_cb=None, log_cb=None):
+                 compress=False, progress_cb=None, log_cb=None):
     """roots: 源目录列表（第一个为基础 TNO，后面的汉化/UI 覆盖 mod 优先级更高）。"""
     log = log_cb or (lambda s: None)
     params = make_params(target_rgb, darken)
@@ -1476,7 +1488,7 @@ def cli_main(argv):
     ap.add_argument('--name', help='Mod 显示名')
     ap.add_argument('--darken', type=float, default=0.0, help='亮灰/白压暗强度 0~1(暗色系风格)')
     ap.add_argument('--install', action='store_true', help='生成后复制到 HOI4 mod 目录')
-    ap.add_argument('--no-compress', action='store_true', help='输出未压缩 32 位 DDS（体积约大 4 倍）')
+    ap.add_argument('--compress', action='store_true', help='输出 DXT5 压缩 DDS（体积约小 4 倍，但块状压缩可能产生噪点/条纹，不推荐）')
     ap.add_argument('--scan-only', action='store_true', help='只扫描列出会被改色的文件，不生成')
     ap.add_argument('--list', action='store_true', help='输出每个改色文件路径')
     args = ap.parse_args(argv)
@@ -1509,7 +1521,7 @@ def cli_main(argv):
     mod_name = args.name or ("TNO UI %s GUI" % pname)
     log = lambda s: print(s)
     stats, jobs = generate_mod(roots, target, out, mod_name=mod_name,
-                               darken=args.darken, compress=not args.no_compress,
+                               darken=args.darken, compress=args.compress,
                                progress_cb=lambda i, n, b: None, log_cb=log)
     print("\n生成完成: %s" % out)
     print("共改色 %d 个贴图，输出体积 %.1f MB" % (stats["blue"], stats["changed_bytes"] / 1048576))
@@ -1624,8 +1636,8 @@ def gui_main():
     darken_lbl = ttk.Label(opt, text="0%")
     darken_lbl.grid(row=0, column=2)
     darken_var.trace_add('write', lambda *a: darken_lbl.configure(text="%d%%" % int(darken_var.get() * 100)))
-    compress_var = tk.BooleanVar(value=True)
-    ttk.Checkbutton(opt, text="压缩输出 DXT5（体积约小 4 倍，原版游戏 UI 同款格式；取消则输出未压缩 32 位）",
+    compress_var = tk.BooleanVar(value=False)
+    ttk.Checkbutton(opt, text="压缩输出 DXT5（体积约小 4 倍，但可能产生噪点/条纹；默认不勾选=未压缩，与 TNO 本体一致）",
                     variable=compress_var).grid(row=1, column=0, columnspan=3, sticky='w')
 
     # 输出
