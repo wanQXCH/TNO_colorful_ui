@@ -1,5 +1,6 @@
 # TNO UI 换色 Mod 生成器
 
+## 本工具使用DSH + Deepseek V4 Flash 制作
 把 TNO（The New Order / TNO: Requiem）界面里所有的“TNO 蓝”自动替换成你想要的任意颜色，
 一键生成可直接安装的 HOI4 Mod。不需要任何游戏内工具，不依赖 Photoshop。
 
