@@ -1,0 +1,2 @@
+# TNO_colorful_ui
+一个全自动更改TNO的ui颜色的python工具，理论上适应任何版本的TNO
