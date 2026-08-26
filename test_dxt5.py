@@ -22,11 +22,11 @@ samples = [
     r"gfx\interface\topbar\achievements_button.dds",
     r"gfx\aces\ace_none.dds",
     r"gfx\interface\leader_selection_entry_bg.dds",
-    r"gfx\maparrows\railway_pattern.dds",
+    r"gfx\interface\mapmode\mapmode_buttons_deselected_small.dds",
     r"gfx\interface\technologies\1950_air_radar.dds",
 ]
 for rel in samples:
-    w, h, bgra, meta = g.read_dds(os.path.join(r"2980739000", rel))
+    w, h, bgra, meta = g.read_dds(os.path.join(r"D:\heart of iron\SW00383\langou123\hoi4\mod\2438003901", rel))
     arr = np.frombuffer(bgra, dtype=np.uint8).reshape(h, w, 4)
     enc = g.encode_dxt5_np(arr)
     expected = ((w + 3) // 4) * ((h + 3) // 4) * 16

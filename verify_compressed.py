@@ -19,7 +19,7 @@ for rel in [
     r"gfx\aces\ace_none.dds",
     r"gfx\interface\technologies\1950_air_radar.dds",
 ]:
-    w, h, ob, _ = g.read_dds(os.path.join(r"2980739000", rel))
+    w, h, ob, _ = g.read_dds(os.path.join(r"D:\heart of iron\SW00383\langou123\hoi4\mod\2438003901", rel))
     w2, h2, nb, _ = g.read_dds(os.path.join(NEW, rel))
     check("size %s" % rel, (w, h) == (w2, h2))
     oa = np.frombuffer(ob, dtype=np.uint8).astype(int).reshape(-1, 4)

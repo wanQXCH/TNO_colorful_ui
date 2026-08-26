@@ -26,8 +26,8 @@ for dp, _, fns in os.walk(WHITE):
             continue
         rel = os.path.relpath(os.path.join(dp, fn), WHITE)
         # 源文件（优先汉化版）
-        src = os.path.join('2243912940', rel) if os.path.exists(os.path.join('2243912940', rel)) \
-            else os.path.join('2980739000', rel)
+        src = os.path.join('D:\heart of iron\SW00383\langou123\hoi4\mod\2243912940', rel) if os.path.exists(os.path.join('D:\heart of iron\SW00383\langou123\hoi4\mod\2243912940', rel)) \
+            else os.path.join('D:\heart of iron\SW00383\langou123\hoi4\mod\2438003901', rel)
         try:
             w, h, ob, _ = g.read_dds(src)
             w2, h2, nb, _ = g.read_dds(os.path.join(WHITE, rel))

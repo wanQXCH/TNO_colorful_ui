@@ -38,7 +38,7 @@ for name, target in [('TNO_UI_FFBA5C', (255, 186, 92)),
     # pixel spot check on a key texture
     rel = r'gfx\interface\topbar\achievements_button.dds'
     w, h, nb, _ = g.read_dds(os.path.join(root, rel))
-    w0, h0, ob, _ = g.read_dds(os.path.join('2980739000', rel))
+    w0, h0, ob, _ = g.read_dds(os.path.join('D:\heart of iron\SW00383\langou123\hoi4\mod\2438003901', rel))
     p = g.make_params(target)
     import numpy as np
     oa = np.frombuffer(ob, dtype=np.uint8).astype(int).reshape(-1, 4)

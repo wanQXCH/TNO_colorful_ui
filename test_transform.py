@@ -109,5 +109,27 @@ nb = g.apply_transform(p, bgra, 100, 30)
 check("apply_transform size", len(nb) == len(bgra))
 check("apply_transform alpha kept", nb[3::4] == bgra[3::4])
 
+# 9. darken 模式下 scalar/numpy 一致性（含白色像素——曾因 keep 掩码导致 numpy 不压暗）
+random.seed(7)
+p9 = g.make_params((245, 165, 36), 0.7)
+samples9 = [(255, 255, 255), (250, 250, 250), (240, 240, 240), (230, 230, 230)] + \
+           [(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)) for _ in range(500)]
+arr9 = bytearray()
+for r, g_, b in samples9:
+    arr9 += bytes((b, g_, r, 255))
+out9 = g.transform_numpy(p9, np.frombuffer(bytes(arr9), dtype=np.uint8).reshape(-1, 4))
+bad9 = 0
+for i, (r, g_, b) in enumerate(samples9):
+    sc = g.transform_scalar(p9, r, g_, b)
+    nr, ng, nb = int(out9[i][2]), int(out9[i][1]), int(out9[i][0])
+    if sc is None:
+        if (nr, ng, nb) != (r, g_, b):
+            bad9 += 1
+    else:
+        if abs(sc[0] - nr) > 1 or abs(sc[1] - ng) > 1 or abs(sc[2] - nb) > 1:
+            bad9 += 1
+check("darken scalar/numpy equivalence (504 colors)", bad9 == 0)
+check("darken darkens white in numpy", out9[0][2] < 200, str(out9[0].tolist()))
+
 print("\n%s" % ("ALL PASS" if fails == 0 else "%d FAILURES" % fails))
 sys.exit(1 if fails else 0)

@@ -34,12 +34,12 @@ for name, target in [('TNO_UI_FFBA5C', (255, 186, 92)),
     # 2. CN 覆盖生效：汉化mod改过的贴图已按汉化版换色（取一个 CN 特有的文件）
     cn_only = []
     tno_files = set()
-    for dp, _, fns in os.walk(os.path.join('2980739000', 'gfx')):
+    for dp, _, fns in os.walk(os.path.join('D:\heart of iron\SW00383\langou123\hoi4\mod\2438003901', 'gfx')):
         for fn in fns:
-            tno_files.add(os.path.relpath(os.path.join(dp, fn), '2980739000'))
-    for dp, _, fns in os.walk(os.path.join('2243912940', 'gfx')):
+            tno_files.add(os.path.relpath(os.path.join(dp, fn), 'D:\heart of iron\SW00383\langou123\hoi4\mod\2438003901'))
+    for dp, _, fns in os.walk(os.path.join('D:\heart of iron\SW00383\langou123\hoi4\mod\2243912940', 'gfx')):
         for fn in fns:
-            rel = os.path.relpath(os.path.join(dp, fn), '2243912940')
+            rel = os.path.relpath(os.path.join(dp, fn), 'D:\heart of iron\SW00383\langou123\hoi4\mod\2243912940')
             if rel not in tno_files and rel.lower().endswith('.dds') and 'font' not in rel.lower():
                 cn_only.append(rel)
     missing = [rel for rel in cn_only if not os.path.exists(os.path.join(root, rel))]
@@ -56,7 +56,7 @@ for name, target in [('TNO_UI_FFBA5C', (255, 186, 92)),
         if 'flag' in os.path.basename(rel).lower():
             continue
         try:
-            w, h, bgra, _ = g.read_for_scan('2243912940', rel, 'dds')
+            w, h, bgra, _ = g.read_for_scan('D:\heart of iron\SW00383\langou123\hoi4\mod\2243912940', rel, 'dds')
             if bgra is not None:
                 blue, op = g.count_blue(bgra, w, h)
                 if blue >= g.BLUE_MIN_COUNT and blue / max(1, op) >= g.BLUE_MIN_FRAC:
@@ -69,7 +69,7 @@ for name, target in [('TNO_UI_FFBA5C', (255, 186, 92)),
     # 3. 严格颜色：参考蓝 -> 恰好目标色（过亮目标按压缩系数输出，保留层次）
     rel = r'gfx\interface\topbar\achievements_button.dds'
     w, h, nb, _ = g.read_dds(os.path.join(root, rel))
-    w0, h0, ob, _ = g.read_dds(os.path.join('2980739000', rel))
+    w0, h0, ob, _ = g.read_dds(os.path.join('D:\heart of iron\SW00383\langou123\hoi4\mod\2438003901', rel))
     p = g.make_params(target)
     exp_ref = g.transform_scalar(p, *g.REF_BLUE)
     oa = np.frombuffer(ob, dtype=np.uint8).astype(int).reshape(-1, 4)
@@ -93,7 +93,7 @@ for name, target in [('TNO_UI_FFBA5C', (255, 186, 92)),
     # 4. 深青底 -> 目标色暗色版（白mod -> 深灰）
     rel2 = r'gfx\interface\topbar\background.dds'
     w2, h2, nb2, _ = g.read_dds(os.path.join(root, rel2))
-    w02, h02, ob2, _ = g.read_dds(os.path.join('2980739000', rel2))
+    w02, h02, ob2, _ = g.read_dds(os.path.join('D:\heart of iron\SW00383\langou123\hoi4\mod\2438003901', rel2))
     oa2 = np.frombuffer(ob2, dtype=np.uint8).astype(int).reshape(-1, 4)
     na2 = np.frombuffer(nb2, dtype=np.uint8).astype(int).reshape(-1, 4)
     vis2 = oa2[:, 3] >= 16

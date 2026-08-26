@@ -76,19 +76,33 @@ def _band_weight(hdeg):
 
 def make_params(target_rgb, darken_whites=0.0):
     """由目标颜色构造变换参数。
-    严格模式：蓝青带内像素映射为目标色 × (输入明度/参考蓝明度)，参考蓝恰好变成
-    用户指定的颜色。目标明度过亮时（如纯白）会压缩扩张系数，避免亮部层次
-    全部撞上 255 上限导致按钮/斜面糊成一团。"""
-    _ref_h, ref_l, _ref_s = colorsys.rgb_to_hls(*(c / 255.0 for c in REF_BLUE))
-    _t_h, t_l, _t_s = colorsys.rgb_to_hls(*(c / 255.0 for c in target_rgb))
+    映射 = 色相旋转 + 饱和度缩放 + 亮度映射：
+    - 参考蓝 (89,199,194) 恰好变成目标色（h/s/l 三通道对齐）；
+    - 原贴图的色相/饱和层次完整保留（渐变不断层、不糊成一团）；
+    - 目标明度过亮时（纯白/亮金）压缩扩张系数并按贴图自身亮度分布拉伸亮部。"""
+    ref_h, ref_l, ref_s = colorsys.rgb_to_hls(*(c / 255.0 for c in REF_BLUE))
+    t_h, t_l, t_s = colorsys.rgb_to_hls(*(c / 255.0 for c in target_rgb))
     k = max(1.0, t_l / MAX_ANCHOR_L)
     return {
         "target": tuple(target_rgb),
-        "target_bgr": (target_rgb[2], target_rgb[1], target_rgb[0]),
         "ref_l": ref_l,
+        "t_l": t_l,
+        "dh": (t_h - ref_h) % 1.0,
+        "sat_scale": (t_s / ref_s) if ref_s > 0 else 0.0,
         "k": k,
         "darken": max(0.0, min(1.0, darken_whites)),
     }
+
+
+def _map_lightness(p, l, l_hi):
+    """亮度映射：参考蓝 -> 目标色明度；过亮目标压缩；亮部按贴图分布拉伸。"""
+    ref_l = p["ref_l"]
+    if p["k"] > 1.0 and l_hi is not None and l_hi > ref_l and l > ref_l:
+        t = (l - ref_l) / (l_hi - ref_l)
+        nl = (p["t_l"] / p["k"]) + t * (1.0 - p["t_l"] / p["k"])
+    else:
+        nl = l * (p["t_l"] / ref_l) / p["k"]
+    return min(nl, 1.0)
 
 
 def transform_scalar(p, r, g, b, l_hi=None):
@@ -102,16 +116,11 @@ def transform_scalar(p, r, g, b, l_hi=None):
     w = _band_weight(h * 360.0)
     if w <= 1e-6 or s < MIN_SAT or l < MIN_LIGHT or l > MAX_LIGHT:
         return None
-    ref_l = p["ref_l"]
-    if p["k"] > 1.0 and l_hi is not None and l_hi > ref_l and l > ref_l:
-        # 过亮目标（如纯白）+ 贴图自身亮部：把 [ref_l, l_hi] 拉伸到 [1/k, 1]，
-        # 保留该贴图的斜面/高光层次，避免全部撞上 255 上限糊成一团
-        t = (l - ref_l) / (l_hi - ref_l)
-        ratio = (1.0 / p["k"]) + t * (1.0 - 1.0 / p["k"])
-    else:
-        ratio = (l / ref_l) / p["k"]
-    tgt = p["target"]
-    out = tuple(max(0, min(255, int(round(c * ratio)))) for c in tgt)
+    nh = (h + p["dh"]) % 1.0
+    ns = min(1.0, s * p["sat_scale"])
+    nl = _map_lightness(p, l, l_hi)
+    out = colorsys.hls_to_rgb(nh, nl, ns)
+    out = tuple(max(0, min(255, int(round(c * 255)))) for c in out)
     if w >= 1.0 - 1e-9:
         return out
     # 色带边缘按权重与原始色混合，保证过渡平滑
@@ -164,11 +173,11 @@ def transform_numpy(p, bgra, l_hi=None):
     darken = p["darken"]
     if darken > 0:
         mask_w = (s < 0.06) & (l > 0.75)
-        nl = np.where(mask_w, l + (0.52 - l) * darken, l)
-        nr, ng, nb = _np_rgb(h, nl, s)
-        base = np.stack([nb, ng, nr], axis=1) * 255.0
+        nl_w = np.where(mask_w, l + (0.52 - l) * darken, l)
+        nr, ng, nb = _np_rgb(h, nl_w, s)
+        base = np.stack([nb, ng, nr], axis=1)          # 0..1
     else:
-        nl = l
+        mask_w = np.zeros_like(s, dtype=bool)
         base = None
     hdeg = h * 360.0
     w = np.zeros_like(h)
@@ -181,25 +190,30 @@ def transform_numpy(p, bgra, l_hi=None):
     t = np.clip((hdeg - BAND_FULL_HI) / (BAND_ZERO_HI - BAND_FULL_HI), 0.0, 1.0)
     w = np.where(m_hi, 0.5 * (1.0 + np.cos(np.pi * t)), w)
     keep = (w > 1e-6) & (s >= MIN_SAT) & (l >= MIN_LIGHT) & (l <= MAX_LIGHT)
-    # 严格映射：目标色 × (输入明度 / 参考蓝明度) / 亮目标压缩系数；
-    # 过亮目标且贴图有亮部时按贴图自身亮度分布拉伸，保留层次
+    # 色相旋转 + 饱和度缩放 + 亮度映射（保留层次，参考蓝 -> 目标色）
+    nh = (h + p["dh"]) % 1.0
+    ns = np.minimum(1.0, s * p["sat_scale"])
     ref_l = p["ref_l"]
     if p["k"] > 1.0 and l_hi is not None and l_hi > ref_l:
         up = l > ref_l
         tt = np.clip((l - ref_l) / (l_hi - ref_l), 0.0, 1.0)
-        ratio = (1.0 / p["k"]) + tt * (1.0 - 1.0 / p["k"])
-        ratio = np.where(up, ratio, (l / ref_l) / p["k"])
+        nlu = (p["t_l"] / p["k"]) + tt * (1.0 - p["t_l"] / p["k"])
+        nlb = l * (p["t_l"] / ref_l) / p["k"]
+        nl = np.where(up, nlu, nlb)
     else:
-        ratio = (l / ref_l) / p["k"]
-    target_bgr = _np.array(p["target_bgr"], dtype=_np.float32) / 255.0
-    colored = _np.clip(target_bgr[None, :] * ratio[:, None], 0.0, 1.0)
+        nl = l * (p["t_l"] / ref_l) / p["k"]
+    nl = np.minimum(nl, 1.0)
+    nr, ng, nb = _np_rgb(nh, nl, ns)
+    colored = np.stack([nb, ng, nr], axis=1)
     mixed = colored * w[:, None] + bgr * (1.0 - w)[:, None]
     if darken > 0:
         out = np.where(mask_w[:, None], base, mixed)
     else:
         out = mixed
     result = np.empty_like(bgra, dtype=np.float32)
-    result[:, :3] = np.where(keep[:, None], out * 255.0, bgr * 255.0)
+    # 压暗白色优先于色带 keep 判定（否则白色像素被 keep=False 送回原色）
+    sel = keep | mask_w
+    result[:, :3] = np.where(sel[:, None], out * 255.0, bgr * 255.0)
     result[:, 3] = a.astype(np.float32)
     return np.clip(result, 0, 255).astype(np.uint8)
 
@@ -1375,22 +1389,67 @@ def parse_color(s):
     raise ValueError("颜色格式应为 #RRGGBB，如 #FFBA5C")
 
 
+def _tno_score(p):
+    """给候选源打分：旧版本体 > Requiem > 汉化 > 其他 TNO 系 mod。"""
+    desc = os.path.join(p, 'descriptor.mod')
+    try:
+        txt = open(desc, 'r', encoding='utf-8', errors='ignore').read(2000)
+    except Exception:
+        txt = ''
+    m = re.search(r'name\s*=\s*"([^"]+)"', txt)
+    name = m.group(1) if m else ''
+    if not name or 'UI' in name[:40]:
+        return -1
+    if name == 'The New Order: Last Days of Europe':
+        return 40
+    if name == 'TNO: Requiem':
+        return 30
+    if any(k in name for k in ('New Order', 'TNO', '新秩序', 'Requiem')):
+        return 10 if any(k in name for k in ('CN', '汉化', '汉化版')) else 20
+    return -1
+
+
+def _is_tno_root(p):
+    return _tno_score(p) > 0 and os.path.isdir(os.path.join(p, 'gfx'))
+
+
 def find_tno_root(cwd):
     cand = [cwd]
     for d in sorted(os.listdir(cwd)):
         p = os.path.join(cwd, d)
         if os.path.isdir(p):
             cand.append(p)
+    best = None
+    best_score = -1
     for p in cand:
-        desc = os.path.join(p, 'descriptor.mod')
-        if os.path.isfile(desc):
-            try:
-                txt = open(desc, 'r', encoding='utf-8', errors='ignore').read(2000)
-            except Exception:
-                txt = ''
-            if 'TNO' in txt and ('Requiem' in txt or 'New Order' in txt or '新秩序' in txt):
-                return p
-    return None
+        sc = _tno_score(p) if _is_tno_root(p) else -1
+        if sc > best_score:
+            best, best_score = p, sc
+    if best:
+        return best
+    # 常见游戏 mod 目录里找（文档目录 + Steam 创意工坊 + 自定义路径）
+    bases = []
+    for base in (os.path.expanduser('~'), os.environ.get('USERPROFILE', '')):
+        bases.append(os.path.join(base, 'Documents', 'Paradox Interactive', 'Hearts of Iron IV', 'mod'))
+    for drive in ('C:', 'D:', 'E:', 'F:'):
+        if os.path.isdir(drive + os.sep):
+            bases.append(os.path.join(drive + os.sep, 'heart of iron'))
+            bases.append(os.path.join(drive + os.sep, 'SteamLibrary', 'steamapps', 'workshop', 'content', '394360'))
+            bases.append(os.path.join(drive + os.sep, 'Program Files (x86)', 'Steam', 'steamapps', 'workshop', 'content', '394360'))
+            bases.append(os.path.join(drive + os.sep, 'Steam', 'steamapps', 'workshop', 'content', '394360'))
+    for b in bases:
+        if not os.path.isdir(b):
+            continue
+        for dp, dirs, fns in os.walk(b):
+            if dp.count(os.sep) - b.count(os.sep) > 6:
+                dirs[:] = []
+                continue
+            if _is_tno_root(dp):
+                sc = _tno_score(dp)
+                if sc > best_score:
+                    best, best_score = dp, sc
+            dirs[:] = [d for d in dirs if d.lower() != 'generated_mods']
+    return best
 
 
 def find_hoi4_mod_dir():
