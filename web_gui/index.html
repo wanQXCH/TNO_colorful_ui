@@ -642,7 +642,6 @@ function setRunning(on) {
 
 /* ================= 取色器（HSV） ================= */
 const ring = $('ring'), ctx = ring.getContext('2d');
-let H = state.hsv.h;
 function drawRing() {
   const w = ring.width, cx = w / 2, cy = w / 2, R = w / 2 - 13;
   ctx.clearRect(0, 0, w, w);
@@ -655,7 +654,8 @@ function drawRing() {
     ctx.arc(cx, cy, R, rad - 0.028, rad + 0.028);
     ctx.stroke();
   }
-  const pr = (H - 90) * Math.PI / 180;
+  const h = state.hsv.h;
+  const pr = (h - 90) * Math.PI / 180;
   const px = cx + R * Math.cos(pr), py = cy + R * Math.sin(pr);
   ctx.beginPath();
   ctx.arc(px, py, 9, 0, Math.PI * 2);
@@ -666,8 +666,7 @@ function drawRing() {
   ctx.stroke();
   ctx.beginPath();
   ctx.arc(px, py, 4.5, 0, Math.PI * 2);
-  ctx.fillStyle = COLORLIB.hsv2rgb(H, 100, 100).map(v => Math.round(v)).join(',');
-  ctx.fillStyle = `rgb(${COLORLIB.hsv2rgb(H, 100, 100).join(',')})`;
+  ctx.fillStyle = `rgb(${COLORLIB.hsv2rgb(h, 100, 100).join(',')})`;
   ctx.fill();
 }
 function ringAngle(e) {
@@ -680,11 +679,11 @@ function ringAngle(e) {
 }
 ring.addEventListener('pointerdown', e => {
   ring.setPointerCapture(e.pointerId);
-  H = ringAngle(e);
+  state.hsv.h = ringAngle(e);
   drawRing(); syncFromHsv();
 });
 ring.addEventListener('pointermove', e => {
-  if (e.buttons & 1) { H = ringAngle(e); drawRing(); syncFromHsv(); }
+  if (e.buttons & 1) { state.hsv.h = ringAngle(e); drawRing(); syncFromHsv(); }
 });
 
 function makeSlider(rowId, trackId, knobId, set) {
@@ -742,7 +741,6 @@ $('hexIn').addEventListener('change', () => {
     hx = COLORLIB.rgb2hex(...rgb);
     const { h, s, v } = COLORLIB.rgb2hsv(...rgb);
     state.hsv = { h, s, v };
-    H = h;
     drawRing(); refreshBars(); applyColor(hx);
     document.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.hex === hx));
   } else {
@@ -763,7 +761,6 @@ function renderPresets() {
     c.onclick = () => {
       const { h, s, v } = COLORLIB.rgb2hsv(...COLORLIB.hex2rgb(hexv));
       state.hsv = { h, s, v };
-      H = h;
       drawRing(); refreshBars(); syncFromHsv();
     };
     box.appendChild(c);
@@ -1031,7 +1028,7 @@ $('clearLogBtn').onclick = () => { $('log').innerHTML = ''; };
   $('nameIn').value = 'TNO UI #FFBA5C GUI';
   applyColor('#FFBA5C');
   const hs = COLORLIB.rgb2hsv(255, 186, 92);
-  state.hsv = hs; H = hs.h;
+  state.hsv = hs;
   drawRing(); refreshBars(); syncFromHsv();
   renderPvStrip();
   const hi = state.state.hoi4_mod_dir;
