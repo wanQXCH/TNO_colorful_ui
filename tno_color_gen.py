@@ -993,15 +993,13 @@ EXCLUDE_DIRS = {
 # 国策图标（goals/**）整体排除，但白名单内的占位/通用图标仍需换色
 GOAL_WHITELIST = {'goal_unknown.dds'}
 
-# 按文件名模式保护的贴图（饼图/船坞/舰船等语义色块，不应被目标色替代）
+# 按文件名模式保护的贴图（饼图/船坞图标等语义色块，不应被目标色替代）
 # pie 匹配需避开 Pierre/Pieter/Pieces/Pierce/Pied 等单词
+# 注：只保护生产界面/地图上的船坞图标（dockyard_icon*），
+# 船坞生产队列里的舰船条目等仍正常换色（用户要求）
 PROTECT_PATTERNS = [
     re.compile(r'(?:^|[^a-z])pie(?:chart|_|[^a-z]|$)'),   # 饼图 pie/piechart/pie_*/_pie
-    re.compile(r'(?:dockyard|shipyard|drydock)'),         # 船坞/造船厂
-    re.compile(r'naval_production'),                      # 船坞生产队列（造船中的舰船条目）
-    re.compile(r'naval_equipment'),                       # 舰船卡片/军备市场条目
-    re.compile(r'navalrepair'),                           # 船坞修理界面
-    re.compile(r'naval_unit_ship'),                       # 舰队列表中的舰船条目
+    re.compile(r'dockyard'),                              # 生产界面/地图的船坞图标
 ]
 
 BLUE_MIN_COUNT = 12      # 至少这么多蓝色像素
