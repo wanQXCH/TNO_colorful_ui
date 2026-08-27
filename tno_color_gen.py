@@ -7,10 +7,13 @@ TNO UI 换色 Mod 生成器
 换成用户指定的任意颜色，自动生成一个可直接安装的 HOI4 Mod。
 
 用法:
-    图形界面:   python tno_color_gen.py
-    命令行:     python tno_color_gen.py --tno 2980739000 --color "#FFBA5C" --out output
-               python tno_color_gen.py --tno 2980739000 --preset orange
-               python tno_color_gen.py --tno 2980739000 --scan-only   # 只列出会被改色的文件
+    Web 界面:     python tno_color_gen.py           # 启动本地服务并打开浏览器
+                  python tno_color_gen.py --web
+    旧版 GUI:     python tno_color_gen.py --gui
+    Web 后端:     python tno_web_gui.py [--port 8765] [--no-browser]
+    命令行:       python tno_color_gen.py --mods <目录...> --color "#FFBA5C" --out output
+                  python tno_color_gen.py --mods <目录...> --preset orange
+                  python tno_color_gen.py --mods <目录...> --scan-only   # 只列会被改色的文件
 
 原理:
     TNO 界面贴图几乎都是未压缩 32 位 BGRA 的 .dds（少数 24 位 RGB / DXT3 / DX10-BGRA、
@@ -1211,19 +1214,22 @@ def _process_one(item):
 
 def scan_and_build(roots, params, out_root,
                    progress_cb=None, log_cb=None, want_list=False, dry_run=False,
-                   compress=False, jobs=0):
+                   compress=False, jobs=0, cancel_event=None):
     """扫描多源 gfx，把蓝色贴图换色后写入 out_root。返回统计信息。
-    jobs: 并行进程数（0 = 自动按 CPU 数，1 = 单进程）。"""
+    jobs: 并行进程数（0 = 自动按 CPU 数，1 = 单进程）。
+    cancel_event: 可选 threading.Event，置位后尽快中止（可被 Web GUI 取消）。"""
     log = log_cb or (lambda s: None)
     stats = {"scanned": 0, "blue": 0, "skipped_dir": 0, "unsupported": 0,
              "tiny": 0, "photo_skip": 0, "errors": [], "changed_bytes": 0}
     out_jobs = []
+    done = [0]
     file_map = collect_file_map(roots)
     items = [(rel, root, out_root, params, compress, dry_run)
              for rel, root in sorted(file_map.items())]
     total = len(items)
 
     def accumulate(res, i):
+        done[0] += 1
         action = res[0]
         if action == "blue":
             stats["blue"] += 1
@@ -1253,14 +1259,21 @@ def scan_and_build(roots, params, out_root,
             with ctx.Pool(processes=jobs) as pool:
                 for i, res in enumerate(pool.imap_unordered(_process_one, items, chunksize=64)):
                     accumulate(res, i)
+                    if cancel_event is not None and cancel_event.is_set():
+                        break
         except Exception:
             # 并行失败则退回单进程
             for i, item in enumerate(items):
+                if cancel_event is not None and cancel_event.is_set():
+                    break
                 accumulate(_process_one(item), i)
     else:
         for i, item in enumerate(items):
+            if cancel_event is not None and cancel_event.is_set():
+                break
             accumulate(_process_one(item), i)
-    stats["scanned"] = total
+    stats["scanned"] = done[0]
+    stats["total"] = total
     return stats, out_jobs
 
 
@@ -1444,9 +1457,10 @@ def mod_deps_from_descriptor(root):
 
 
 def generate_mod(roots, target_rgb, out_root, mod_name=None, darken=0.0,
-                 compress=False, jobs=0, progress_cb=None, log_cb=None):
+                 compress=False, jobs=0, progress_cb=None, log_cb=None,
+                 cancel_event=None):
     """roots: 源目录列表（第一个为基础 TNO，后面的汉化/UI 覆盖 mod 优先级更高）。
-    jobs: 并行进程数（0=自动）。"""
+    jobs: 并行进程数（0=自动）。cancel_event: 可选，置位后中止并返回部分统计。"""
     log = log_cb or (lambda s: None)
     params = make_params(target_rgb, darken)
     if mod_name is None:
@@ -1457,7 +1471,11 @@ def generate_mod(roots, target_rgb, out_root, mod_name=None, darken=0.0,
     log("开始扫描 %s ..." % " + ".join(os.path.abspath(r) for r in roots))
     stats, jobs_out = scan_and_build(roots, params, out_root,
                                      progress_cb=progress_cb, log_cb=log,
-                                     compress=compress, jobs=jobs)
+                                     compress=compress, jobs=jobs,
+                                     cancel_event=cancel_event)
+    if cancel_event is not None and cancel_event.is_set():
+        log("已取消（处理到 %d/%d 个文件）" % (stats["scanned"], stats.get("total", 0)))
+        return stats, jobs_out
     # 字体文字配色（加载界面默认文字色 D={89,199,194} 等；含汉化 mod 的字体）
     nfonts = patch_font_colors(roots, out_root, params)
     if nfonts:
@@ -1954,12 +1972,23 @@ def gui_main():
 
 
 def main():
-    if '--gui' in sys.argv:
-        sys.argv.remove('--gui')
+    args = sys.argv[1:]
+    if '--gui' in args or '--tk' in args:
+        # 旧版 tkinter 界面仍可用
+        sys.argv[1:] = [a for a in args if a not in ('--gui', '--tk')]
         return gui_main()
-    if len(sys.argv) > 1:
-        return cli_main(sys.argv[1:])
-    return gui_main()
+    if '--web' in args:
+        sys.argv.remove('--web')
+        from tno_web_gui import run_web
+        return run_web()
+    if args:
+        return cli_main(args)
+    # 无参数默认打开 Web 界面（本地服务 + 浏览器）
+    try:
+        from tno_web_gui import run_web
+    except ImportError:
+        return gui_main()
+    return run_web()
 
 
 if __name__ == '__main__':
