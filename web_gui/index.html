@@ -24,7 +24,6 @@
     --shadow: 0 10px 30px rgba(0, 0, 0, .45);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; }
   body {
     font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
     font-size: 14px;
@@ -34,7 +33,7 @@
       radial-gradient(700px 420px at -10% 110%, rgba(89, 199, 194, .05), transparent 55%),
       var(--bg);
     background-attachment: fixed;
-    padding: 18px 22px 40px;
+    padding: 18px 22px 110px;   /* 底部预留操作坞 */
   }
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-thumb { background: #24303f; border-radius: 6px; }
@@ -44,56 +43,56 @@
   /* ---------- 头部 ---------- */
   header {
     display: flex; align-items: center; gap: 12px;
-    max-width: 1220px; margin: 0 auto 18px;
-    padding: 14px 20px;
+    max-width: 1240px; margin: 0 auto 16px;
+    padding: 12px 18px;
     background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
     box-shadow: var(--shadow);
   }
   .logo {
-    width: 34px; height: 34px; border-radius: 50%; flex: none;
+    width: 32px; height: 32px; border-radius: 50%; flex: none;
     border: 5px solid var(--accent);
     box-shadow: 0 0 14px var(--accent-soft), inset 0 0 6px rgba(0,0,0,.6);
   }
-  header h1 { font-size: 17px; font-weight: 600; letter-spacing: .5px; }
+  header h1 { font-size: 16px; font-weight: 600; letter-spacing: .5px; }
   header .sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
   .live {
     margin-left: auto; display: flex; align-items: center; gap: 7px;
     font-size: 12px; color: var(--muted);
     background: var(--panel2); border: 1px solid var(--border);
-    padding: 6px 12px; border-radius: 999px;
+    padding: 6px 12px; border-radius: 999px; white-space: nowrap;
   }
   .live i { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); display: inline-block;
     animation: pulse 2s ease-in-out infinite; }
   @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .35 } }
 
   /* ---------- 布局 ---------- */
-  .wrap { max-width: 1220px; margin: 0 auto; display: grid; grid-template-columns: 430px 1fr; gap: 18px;
+  .wrap { max-width: 1240px; margin: 0 auto; display: grid; grid-template-columns: 430px 1fr; gap: 16px;
     align-items: start; }
-  @media (max-width: 1000px) { .wrap { grid-template-columns: 1fr; } }
-  .col { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+  @media (max-width: 1020px) { .wrap { grid-template-columns: 1fr; } }
+  .col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
   .card {
     background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
-    box-shadow: var(--shadow); padding: 16px 18px 18px;
+    box-shadow: var(--shadow); padding: 14px 16px 16px;
   }
   .card h2 {
-    display: flex; align-items: center; gap: 10px;
-    font-size: 14px; font-weight: 600; letter-spacing: .3px;
-    margin-bottom: 13px;
+    display: flex; align-items: center; gap: 9px;
+    font-size: 13.5px; font-weight: 600; letter-spacing: .3px;
+    margin-bottom: 12px;
   }
   .step {
-    width: 22px; height: 22px; border-radius: 7px; flex: none;
+    width: 21px; height: 21px; border-radius: 7px; flex: none;
     background: var(--accent-soft); border: 1px solid var(--accent);
-    color: var(--accent); font-size: 12px; font-weight: 700;
+    color: var(--accent); font-size: 11.5px; font-weight: 700;
     display: inline-flex; align-items: center; justify-content: center;
   }
   .hint { color: var(--muted); font-size: 12px; line-height: 1.6; }
   .row { display: flex; align-items: center; gap: 8px; }
-  input[type=text], input[type=path], input[type=number], select {
+  input[type=text], select {
     background: #0b1017; border: 1px solid var(--border2); color: var(--text);
     border-radius: 9px; padding: 8px 10px; font: inherit; outline: none;
     transition: border-color .15s, box-shadow .15s;
   }
-  input[type=text]:focus, input[type=path]:focus, select:focus {
+  input[type=text]:focus, select:focus {
     border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);
   }
   input[type=text].wide { flex: 1; min-width: 0; font-family: var(--mono); font-size: 12.5px; }
@@ -117,14 +116,14 @@
   .btn.primary {
     background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 60%, #5b3a10));
     border: none; color: #10130a;
-    font-weight: 700; font-size: 15px; padding: 13px 22px; border-radius: 12px;
+    font-weight: 700; font-size: 14.5px; padding: 10px 20px; border-radius: 11px;
     box-shadow: 0 6px 18px var(--accent-soft);
   }
   .btn.primary:hover { filter: brightness(1.08); color: #10130a; }
   .btn.cancel { border-color: #5d2a2a; color: var(--err); background: #1a1013; }
 
   /* ---------- Mod 目录 ---------- */
-  .mod-row { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; animation: slidein .18s ease; }
+  .mod-row { display: flex; align-items: center; gap: 7px; margin-bottom: 7px; animation: slidein .18s ease; }
   @keyframes slidein { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; } }
   .mod-idx {
     width: 20px; height: 20px; flex: none; border-radius: 6px; font-size: 11px;
@@ -132,7 +131,7 @@
     display: inline-flex; align-items: center; justify-content: center;
   }
   .mod-badge {
-    flex: none; font-size: 11px; max-width: 150px;
+    flex: none; font-size: 11px; max-width: 148px;
     padding: 4px 8px; border-radius: 999px; overflow: hidden; text-overflow: ellipsis;
     white-space: nowrap; background: var(--accent-soft); color: var(--accent);
     border: 1px solid transparent;
@@ -140,76 +139,77 @@
   .mod-badge.ok { border-color: var(--accent); }
   .mod-badge.warn { background: rgba(240, 180, 41, .12); color: var(--warn); border-color: rgba(240,180,41,.4); }
   .mod-badge.err { background: rgba(255, 107, 107, .1); color: var(--err); border-color: rgba(255,107,107,.4); }
-  .toolbar { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
-  .badge-note { margin-top: 10px; }
+  .toolbar { display: flex; gap: 8px; margin-top: 9px; flex-wrap: wrap; }
+  .badge-note { margin-top: 9px; }
 
-  /* ---------- 取色器 ---------- */
-  .picker { display: grid; grid-template-columns: 210px 1fr; gap: 16px; align-items: center; }
+  /* ---------- 取色器（HSV：亮度单调 0%→黑 / 100%→最亮） ---------- */
+  .picker { display: grid; grid-template-columns: 204px 1fr; gap: 14px; align-items: center; }
   @media (max-width: 430px) { .picker { grid-template-columns: 1fr; } }
   #ring { cursor: crosshair; display: block; }
-  .sliders { display: flex; flex-direction: column; gap: 13px; }
-  .slider-row { position: relative; height: 44px; }
+  .sliders { display: flex; flex-direction: column; gap: 12px; }
+  .slider-row { position: relative; height: 40px; }
   .slider-row .lbl {
-    position: absolute; top: 0; left: 0; font-size: 11px; color: var(--muted);
-    display: flex; justify-content: space-between; width: 100%;
+    position: absolute; top: 0; left: 0; right: 0; font-size: 11.5px; color: var(--muted);
+    display: flex; justify-content: space-between;
   }
-  .track { position: absolute; left: 0; right: 0; top: 22px; height: 14px; border-radius: 8px;
+  .slider-row .lbl b { color: var(--accent); font-family: var(--mono); font-weight: 600; }
+  .track { position: absolute; left: 0; right: 0; top: 21px; height: 14px; border-radius: 8px;
     border: 1px solid rgba(255,255,255,.09); cursor: pointer; }
   .knob {
     position: absolute; top: 50%; width: 18px; height: 18px; border-radius: 50%;
     background: #fff; border: 2px solid #30394a; transform: translate(-50%, -50%);
     box-shadow: 0 2px 6px rgba(0,0,0,.5); pointer-events: none;
   }
-  .hex-row { display: flex; gap: 8px; align-items: center; margin-top: 2px; }
-  #hexIn { width: 110px; font-family: var(--mono); text-transform: uppercase; letter-spacing: 1px; font-size: 13.5px; }
-  .swatch { width: 52px; height: 34px; border-radius: 9px; border: 1px solid rgba(255,255,255,.15);
+  .hex-row { display: flex; gap: 8px; align-items: center; margin-top: 1px; }
+  #hexIn { width: 108px; font-family: var(--mono); text-transform: uppercase; letter-spacing: 1px; font-size: 13px; }
+  .swatch { width: 50px; height: 32px; border-radius: 9px; border: 1px solid rgba(255,255,255,.15);
     box-shadow: inset 0 0 8px rgba(0,0,0,.3); }
-  .mapline { margin-top: 10px; font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+  .mapline { margin-top: 8px; font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
   .mapline code { font-family: var(--mono); color: var(--text); background: #0b1017;
     border: 1px solid var(--border); padding: 2px 7px; border-radius: 6px; font-size: 11.5px; }
   .arrow { color: var(--accent); font-weight: 700; }
-  .presets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
+  .presets { display: grid; grid-template-columns: repeat(9, 1fr); gap: 6px; margin-top: 12px; }
+  @media (max-width: 700px) { .presets { grid-template-columns: repeat(3, 1fr); } }
   .chip {
-    border: 1px solid var(--border2); border-radius: 10px; padding: 7px 6px;
+    border: 1px solid var(--border2); border-radius: 9px; padding: 6px 2px;
     background: #0c1218; color: var(--muted); cursor: pointer; text-align: center;
-    font-size: 12px; transition: all .15s; position: relative; overflow: hidden;
+    font-size: 11px; transition: all .15s;
   }
-  .chip .dot { display: block; width: 26px; height: 26px; margin: 0 auto 5px; border-radius: 50%;
+  .chip .dot { display: block; width: 24px; height: 24px; margin: 0 auto 4px; border-radius: 50%;
     border: 2px solid rgba(255,255,255,.22); box-shadow: inset 0 0 5px rgba(0,0,0,.4); }
   .chip:hover { border-color: var(--accent); color: var(--text); transform: translateY(-1px); }
   .chip.active { border-color: var(--accent); color: var(--accent);
     box-shadow: 0 0 0 2px var(--accent-soft); }
 
+  /* ---------- 实时改色预览 ---------- */
+  .pv-strip { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; }
+  .pv-strip .pv-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .pv-strip .pv-title b { font-size: 12.5px; font-weight: 600; }
+  .pv-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  @media (max-width: 620px) { .pv-grid { grid-template-columns: repeat(2, 1fr); } }
+  .pv-item { background: #0b1017; border: 1px solid var(--border); border-radius: 9px; padding: 7px 8px; }
+  .pv-item .pv-name { font-size: 10.5px; color: var(--muted); margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pv-pair { display: flex; align-items: center; gap: 4px; }
+  .pv-chip { flex: 1; height: 26px; border-radius: 6px; border: 1px solid rgba(255,255,255,.12); }
+  .pv-arrow { color: var(--muted); font-size: 11px; flex: none; }
+
   /* ---------- 选项 ---------- */
-  .opt-row { display: flex; align-items: center; gap: 10px; margin-bottom: 13px; }
+  .opt-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
   .opt-row:last-child { margin-bottom: 0; }
-  .opt-row label { flex: none; width: 118px; font-size: 13px; color: var(--text); }
-  .opt-row .val { width: 44px; font-family: var(--mono); color: var(--accent); font-size: 13px; }
+  .opt-row label { flex: none; width: 116px; font-size: 13px; color: var(--text); }
+  .opt-row .val { width: 46px; font-family: var(--mono); color: var(--accent); font-size: 12.5px; text-align: right; }
   input[type=range] { flex: 1; accent-color: var(--accent); cursor: pointer; }
   .check { display: flex; gap: 9px; align-items: flex-start; cursor: pointer; }
   .check input { accent-color: var(--accent); width: 16px; height: 16px; margin-top: 2px; cursor: pointer; }
   .check .check-t { font-size: 13px; }
   .check .check-s { display: block; color: var(--muted); font-size: 11.5px; margin-top: 2px; line-height: 1.5; }
-  .opt-divider { border: 0; border-top: 1px solid var(--border); margin: 13px 0; }
+  .opt-divider { border: 0; border-top: 1px solid var(--border); margin: 12px 0; }
 
-  /* ---------- 右侧执行 ---------- */
-  .mode { display: inline-flex; background: #0b1017; border: 1px solid var(--border2);
-    border-radius: 11px; padding: 4px; gap: 4px; }
-  .mode button {
-    border: 0; background: transparent; color: var(--muted); font: inherit;
-    padding: 8px 18px; border-radius: 8px; cursor: pointer; transition: all .15s;
-  }
-  .mode button.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
-  .run-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
-  #startBtn { flex: 1; }
-  #cancelBtn { display: none; }
-  .run-head.running #startBtn { display: none; }
-  .run-head.running #cancelBtn { display: inline-flex; }
-
-  .prog-card { display: none; margin-bottom: 16px; }
+  /* ---------- 结果区 ---------- */
+  .prog-card { display: none; }
   .prog-card.show { display: block; }
-  .prog-top { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--muted); margin-bottom: 8px; }
-  .prog-top b { color: var(--text); font-size: 20px; font-family: var(--mono); }
+  .prog-top { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--muted); margin-bottom: 8px; gap: 10px; flex-wrap: wrap; }
+  .prog-top b { color: var(--text); font-size: 19px; font-family: var(--mono); }
   .bar { height: 12px; border-radius: 7px; background: #0b1017; border: 1px solid var(--border);
     overflow: hidden; position: relative; }
   .bar .fill { height: 100%; width: 0%; background: linear-gradient(90deg,
@@ -220,19 +220,18 @@
     background-size: 200% 100%; animation: shimmer 1.6s linear infinite; }
   @keyframes shimmer { from { background-position: 200% 0 } to { background-position: -60% 0 } }
 
-  .stats-grid { display: none; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .stats-grid { display: none; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 9px; margin-bottom: 14px; }
   .stats-grid.show { display: grid; }
-  .stat { background: #0b1017; border: 1px solid var(--border); border-radius: 11px; padding: 10px 12px; }
-  .stat .v { font-size: 19px; font-weight: 700; font-family: var(--mono); color: var(--accent); }
-  .stat .k { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
+  .stat { background: #0b1017; border: 1px solid var(--border); border-radius: 10px; padding: 9px 11px; }
+  .stat .v { font-size: 18px; font-weight: 700; font-family: var(--mono); color: var(--accent); }
+  .stat .k { font-size: 11px; color: var(--muted); margin-top: 3px; }
   .stat.alt .v { color: var(--ok); }
 
-  .log-card h2 { margin-bottom: 9px; }
   .log-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
   .log-head .spacer { flex: 1; }
   #log {
     background: #070b10; border: 1px solid var(--border); border-radius: 10px;
-    height: 250px; overflow-y: auto; padding: 10px 12px;
+    height: 220px; overflow-y: auto; padding: 10px 12px;
     font-family: var(--mono); font-size: 12px; line-height: 1.65;
     white-space: pre-wrap; word-break: break-all;
   }
@@ -241,17 +240,50 @@
   #log .err { color: var(--err); }
   #log .dim { color: var(--muted); }
 
-  .pv-card { display: none; margin-top: 16px; }
+  .pv-card { display: none; margin-top: 0; }
   .pv-card.show { display: block; }
   #preview { width: 100%; border-radius: 10px; border: 1px solid var(--border); display: block; }
   .pv-legend { display: flex; gap: 16px; margin-top: 8px; font-size: 12px; color: var(--muted); }
   .pv-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 5px;
     vertical-align: -1px; }
 
-  .post-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+  /* ---------- 底部固定操作坞：开始键永远可见 ---------- */
+  .dock {
+    position: fixed; left: 50%; transform: translateX(-50%); bottom: 14px; z-index: 60;
+    display: flex; align-items: center; gap: 10px;
+    width: min(820px, calc(100vw - 28px));
+    padding: 10px 14px;
+    background: rgba(10, 14, 20, .94); backdrop-filter: blur(12px);
+    border: 1px solid var(--border2); border-radius: 16px;
+    box-shadow: 0 14px 44px rgba(0, 0, 0, .65);
+  }
+  .dock .mode { display: inline-flex; background: #0b1017; border: 1px solid var(--border2);
+    border-radius: 10px; padding: 3px; gap: 3px; flex: none; }
+  .dock .mode button {
+    border: 0; background: transparent; color: var(--muted); font: inherit;
+    padding: 7px 12px; border-radius: 7px; cursor: pointer; transition: all .15s; font-size: 13px;
+    white-space: nowrap;
+  }
+  .dock .mode button.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  #startBtn { flex: 1; }
+  #cancelBtn { display: none; }
+  .dock.running #startBtn { display: none; }
+  .dock.running #cancelBtn { display: inline-flex; }
+  .dock-prog { display: none; flex-direction: column; align-items: flex-end; min-width: 150px; }
+  .dock.running .dock-prog { display: flex; }
+  .dock-prog b { font-family: var(--mono); color: var(--accent); font-size: 15px; }
+  .dock-prog span { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+  .dock-mini { height: 4px; border-radius: 2px; background: #0b1017; border: 1px solid var(--border);
+    overflow: hidden; min-width: 150px; flex: 1; display: none; }
+  .dock.running .dock-mini { display: block; }
+  .dock-mini .fill { height: 100%; width: 0%; background: var(--accent); transition: width .3s; }
+  @media (max-width: 680px) {
+    .dock-mini, .dock-prog { display: none !important; }
+    .dock .mode button { padding: 7px 9px; }
+  }
 
   /* ---------- Toast ---------- */
-  #toasts { position: fixed; right: 18px; bottom: 18px; display: flex; flex-direction: column;
+  #toasts { position: fixed; right: 18px; bottom: 86px; display: flex; flex-direction: column;
     gap: 10px; z-index: 99; }
   .toast {
     background: #101924; border: 1px solid var(--border2); border-left: 3px solid var(--accent);
@@ -264,7 +296,7 @@
   .toast.leaving { opacity: 0; transform: translateX(14px); transition: all .3s; }
   @keyframes toastin { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; } }
 
-  footer { max-width: 1220px; margin: 26px auto 0; text-align: center;
+  footer { max-width: 1240px; margin: 24px auto 0; text-align: center;
     color: var(--muted); font-size: 12px; }
   footer code { font-family: var(--mono); color: var(--text); }
   .spin { display: inline-block; width: 12px; height: 12px; border: 2px solid transparent;
@@ -280,7 +312,7 @@
     <h1>TNO UI 换色 Mod 生成器</h1>
     <div class="sub">把 TNO 界面的「TNO 蓝」一键换成你想要的颜色 · 生成可直接安装的 HOI4 Mod</div>
   </div>
-  <div class="live"><i></i>本地服务运行中 · 数据不出本机</div>
+  <div class="live"><i></i>本地服务运行中</div>
 </header>
 
 <div class="wrap">
@@ -297,22 +329,22 @@
         <button class="btn" id="clearModsBtn">清空</button>
       </div>
       <div class="hint badge-note">支持 TNO 本体、汉化、任意 sub mod / UI 覆盖 mod（如道阻且长 LAR）。
-        留空点「自动装配」可在游戏 mod 目录里按 descriptor.mod 的依赖自动找出全套。</div>
+        点「自动装配」可在游戏 mod 目录里按 descriptor.mod 的依赖自动找出全套。</div>
     </div>
 
     <!-- ② 目标颜色 -->
     <div class="card">
       <h2><span class="step">2</span>目标颜色</h2>
       <div class="picker">
-        <canvas id="ring" width="210" height="210"></canvas>
+        <canvas id="ring" width="204" height="204"></canvas>
         <div class="sliders">
           <div class="slider-row" id="sRow">
-            <div class="lbl"><span>饱和度 <b id="sVal">0%</b></span></div>
+            <div class="lbl"><span>饱和度</span><b id="sVal">64%</b></div>
             <div class="track" id="sTrack"><div class="knob" id="sKnob"></div></div>
           </div>
-          <div class="slider-row" id="lRow">
-            <div class="lbl"><span>亮度 <b id="lVal">50%</b></span></div>
-            <div class="track" id="lTrack"><div class="knob" id="lKnob"></div></div>
+          <div class="slider-row" id="vRow">
+            <div class="lbl"><span>亮度</span><b id="vVal">100%</b></div>
+            <div class="track" id="vTrack"><div class="knob" id="vKnob"></div></div>
           </div>
           <div class="hex-row">
             <input type="text" id="hexIn" maxlength="7" spellcheck="false" placeholder="#FFBA5C">
@@ -320,19 +352,31 @@
           </div>
         </div>
       </div>
-      <div class="mapline" id="mapLine"></div>
+      <div class="hint" style="margin-top:9px">亮度 <b style="color:var(--accent)">0% = 纯黑</b>，<b style="color:var(--accent)">100% = 这个颜色应有的最大亮度</b>；
+        换色时 TNO 参考蓝 <span style="font-family:var(--mono)">(89,199,194)</span> 映射为你选的颜色；
+        过亮目标（纯白等）自动按 96% 锚定并保留高光层次。</div>
       <div class="presets" id="presetBox"></div>
+
+      <!-- 实时改色预览：直接看“颜色 + 压暗”的效果 -->
+      <div class="pv-strip">
+        <div class="pv-title">
+          <b>生成效果预览（左：原图 → 右：换色后）</b>
+          <span class="hint">随上方颜色 / 压暗实时变化</span>
+        </div>
+        <div class="pv-grid" id="pvGrid"></div>
+      </div>
     </div>
 
     <!-- ③ 选项 -->
     <div class="card">
       <h2><span class="step">3</span>选项</h2>
       <div class="opt-row">
-        <label>亮灰/白色压暗</label>
+        <label>源图亮白压暗</label>
         <input type="range" id="darkenRange" min="0" max="100" value="0">
         <span class="val" id="darkenVal">0%</span>
       </div>
-      <div class="hint" style="margin:-5px 0 13px 128px">暗色系风格：把亮灰/白色平滑压暗（无硬阈值），0% = 保持原样。</div>
+      <div class="hint" style="margin:-4px 0 12px 126px">暗色系风格：把<b>原图里</b>亮灰/白色（纸张、按钮斜面、白色文字底）平滑压暗。
+        它<b>不改变</b>你选的目标颜色，只让界面整体偏暗——0% = 完全不压（推荐先用 40~60% 感受一下）。</div>
       <label class="check">
         <input type="checkbox" id="compressChk">
         <span class="check-t">压缩输出 DXT5<span class="check-s">体积约小 4 倍；但 4×4 块状压缩会在细线条/渐变上产生噪点与明暗条纹，不推荐——默认未压缩 32 位（与 TNO 本体完全一致）</span></span>
@@ -352,7 +396,7 @@
         <label>Mod 显示名</label>
         <input type="text" id="nameIn" class="wide" spellcheck="false">
       </div>
-      <label class="check" id="installWrap" style="margin-top:4px">
+      <label class="check" id="installWrap" style="margin-top:2px">
         <input type="checkbox" id="installChk" checked>
         <span class="check-t">生成后复制到 HOI4 mod 目录<span class="check-s" id="installHint"></span></span>
       </label>
@@ -365,60 +409,63 @@
         <input type="text" id="outIn" class="wide" spellcheck="false">
         <button class="ic" id="browseOutBtn" title="浏览…">📁</button>
       </div>
-      <div class="hint" style="margin-top:9px">生成的 Mod 文件夹 + <code>.mod</code> 文件 + <code>preview.png</code> 对照图都在这里。</div>
+      <div class="hint" style="margin-top:8px">生成的 Mod 文件夹 + <code>.mod</code> 文件 + <code>preview.png</code> 对照图都在这里。</div>
     </div>
   </div>
 
-  <!-- ==================== 右列：执行 ==================== -->
+  <!-- ==================== 右列：结果 ==================== -->
   <div class="col">
-    <div class="card">
-      <div class="run-head" id="runHead">
-        <span class="mode" id="modeSeg">
-          <button data-mode="generate" class="on">生成 Mod</button>
-          <button data-mode="scan">仅扫描统计</button>
-        </span>
-        <button class="btn primary" id="startBtn">开始生成</button>
-        <button class="btn cancel" id="cancelBtn"><span class="spin" id="cancelSpin"></span> 取消</button>
-      </div>
-
-      <div class="prog-card" id="progCard">
+    <div class="card" id="resultCard">
+      <h2><span class="step">▶</span>执行结果</h2>
+      <div class="prog-card show" id="progCard" style="display:none">
         <div class="prog-top">
-          <span>处理中… <b id="progPct">0%</b></span>
+          <span>进度 <b id="progPct">0%</b></span>
           <span id="progTxt">0 / 0 个文件 · 已改色 0</span>
         </div>
         <div class="bar"><div class="fill" id="progFill"></div></div>
       </div>
-
       <div class="stats-grid" id="statsGrid"></div>
+      <div class="hint" id="idleHint">开始后这里显示进度、统计与预览。</div>
+    </div>
 
-      <div class="log-card">
-        <div class="log-head">
-          <span class="hint">日志</span>
-          <span class="spacer"></span>
-          <button class="btn" id="copyLogBtn">复制</button>
-          <button class="btn" id="clearLogBtn">清空</button>
-        </div>
-        <div id="log"><span class="dim">就绪。选好颜色 → 开始生成。</span></div>
+    <div class="card">
+      <div class="log-head">
+        <span class="hint">日志</span>
+        <span class="spacer"></span>
+        <button class="btn" id="copyLogBtn">复制</button>
+        <button class="btn" id="clearLogBtn">清空</button>
       </div>
+      <div id="log"><span class="dim">就绪。设置好后点底部「开始生成」。</span></div>
+    </div>
 
-      <div class="pv-card" id="pvCard">
-        <div class="log-head" style="margin-top:2px">
-          <span class="hint">对照预览（左：原版蓝色 · 右：换色后）</span>
-          <span class="spacer"></span>
-        </div>
-        <img id="preview" alt="preview">
-        <div class="pv-legend">
-          <span><i style="background:#59C7C2"></i>原始 TNO 蓝</span>
-          <span><i id="legendBar" style="background:#FFBA5C"></i>目标色</span>
-        </div>
+    <div class="card pv-card" id="pvCard">
+      <div class="log-head">
+        <span class="hint">对照预览（左：原版蓝色 · 右：换色后）</span>
+        <span class="spacer"></span>
       </div>
-
-      <div class="post-actions" id="postActions" style="display:none">
+      <img id="preview" alt="preview">
+      <div class="pv-legend">
+        <span><i style="background:#59C7C2"></i>原始 TNO 蓝</span>
+        <span><i id="legendBar" style="background:#FFBA5C"></i>目标色</span>
+      </div>
+      <div style="margin-top:10px">
         <button class="btn" id="openOutBtn">📂 打开输出文件夹</button>
         <button class="btn" id="openModBtn" style="display:none">📦 打开已安装的 Mod 目录</button>
       </div>
     </div>
   </div>
+</div>
+
+<!-- 底部固定操作坞：开始 / 取消 / 模式 永远可见 -->
+<div class="dock" id="dock">
+  <span class="mode" id="modeSeg">
+    <button data-mode="generate" class="on">生成 Mod</button>
+    <button data-mode="scan">仅扫描</button>
+  </span>
+  <button class="btn primary" id="startBtn">开始生成</button>
+  <button class="btn cancel" id="cancelBtn"><span class="spin" id="cancelSpin"></span> 取消</button>
+  <div class="dock-mini"><div class="fill" id="dockFill"></div></div>
+  <div class="dock-prog"><b id="dockPct">0%</b><span id="dockTxt">0 / 0</span></div>
 </div>
 
 <footer>
@@ -433,55 +480,130 @@
 /* ================= 状态 ================= */
 const $ = id => document.getElementById(id);
 const state = {
-  state: null,          // /api/state
+  state: null,
   mode: 'generate',
-  hsl: { h: 34, s: 100, l: 57 },   // 对应 #FFBA5C
-  seq: 0,               // 已接收日志序号
+  hsv: { h: 34.6, s: 64, v: 100 },   // 对应 #FFBA5C
+  seq: 0,
   running: false,
   currentJob: null,
-  outTouched: false,
-  jobs: {},
 };
 
-/* ================= 工具 ================= */
-function hex2rgb(h) {
-  h = (h || '').trim().replace('#', '');
-  if (!/^[0-9a-fA-F]{6}$/.test(h)) return null;
-  return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+/*COLORLIB-START (纯颜色数学，供测试与预览复用)*/
+const COLORLIB = {
+  REF_BLUE: [89, 199, 194],
+  BAND: { zeroLo: 145, fullLo: 160, fullHi: 225, zeroHi: 240 },
+  MIN_SAT: 0.05, MIN_LIGHT: 0.02, MAX_LIGHT: 0.985, MAX_ANCHOR_L: 0.96,
+
+  hex2rgb(h) {
+    h = (h || '').trim().replace('#', '');
+    if (!/^[0-9a-fA-F]{6}$/.test(h)) return null;
+    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+  },
+  rgb2hex(r, g, b) {
+    return '#' + [r, g, b].map(v => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join('').toUpperCase();
+  },
+  rgb2hsv(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+    let h = 0;
+    if (d) {
+      if (mx === r) h = ((g - b) / d) % 6;
+      else if (mx === g) h = (b - r) / d + 2;
+      else h = (r - g) / d + 4;
+      h *= 60; if (h < 0) h += 360;
+    }
+    return { h, s: (mx ? d / mx : 0) * 100, v: mx * 100 };
+  },
+  hsv2rgb(h, s, v) {
+    h = ((h % 360) + 360) % 360; s /= 100; v /= 100;
+    const c = v * s, hp = h / 60, x = c * (1 - Math.abs(hp % 2 - 1));
+    let r = 0, g = 0, b = 0;
+    if (hp < 1) [r, g, b] = [c, x, 0];
+    else if (hp < 2) [r, g, b] = [x, c, 0];
+    else if (hp < 3) [r, g, b] = [0, c, x];
+    else if (hp < 4) [r, g, b] = [0, x, c];
+    else if (hp < 5) [r, g, b] = [x, 0, c];
+    else [r, g, b] = [c, 0, x];
+    const m = v - c;
+    return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)];
+  },
+  // 与 python 端 colorsys.rgb_to_hls 一致
+  rgb2hls(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+    const l = (mx + mn) / 2;
+    const s = d === 0 ? 0 : (l <= 0.5 ? d / (mx + mn) : d / (2 - mx - mn));
+    let h = 0;
+    if (d > 0) {
+      if (mx === r) h = ((g - b) / d) % 6;
+      else if (mx === g) h = (b - r) / d + 2;
+      else h = (r - g) / d + 4;
+      h /= 6;
+    }
+    return [h, l, s];
+  },
+  hls2rgb(h, l, s) {
+    function v_(m1, m2, hue) {
+      hue = ((hue % 1) + 1) % 1;
+      if (hue * 6 < 1) return m1 + (m2 - m1) * hue * 6;
+      if (hue * 2 < 1) return m2;
+      if (hue * 3 < 2) return m1 + (m2 - m1) * (2 / 3 - hue) * 6;
+      return m1;
+    }
+    const m2 = l <= 0.5 ? l * (1 + s) : l + s - l * s;
+    const m1 = 2 * l - m2;
+    return [v_(m1, m2, h + 1 / 3), v_(m1, m2, h), v_(m1, m2, h - 1 / 3)];
+  },
+  bandWeight(hdeg) {
+    const B = this.BAND;
+    if (hdeg >= B.fullLo && hdeg <= B.fullHi) return 1;
+    if (hdeg > B.zeroLo && hdeg < B.fullLo) {
+      const t = (hdeg - B.zeroLo) / (B.fullLo - B.zeroLo);
+      return 0.5 * (1 - Math.cos(Math.PI * t));
+    }
+    if (hdeg > B.fullHi && hdeg < B.zeroHi) {
+      const t = (hdeg - B.fullHi) / (B.zeroHi - B.fullHi);
+      return 0.5 * (1 + Math.cos(Math.PI * t));
+    }
+    return 0;
+  },
+  makeParams(targetRgb, darken) {
+    const ref = this.rgb2hls(...this.REF_BLUE), t = this.rgb2hls(...targetRgb);
+    const k = Math.max(1, t[1] / this.MAX_ANCHOR_L);
+    return { t_h: t[0], t_l: t[1], t_s: t[2], ref_l: ref[1],
+      sat_scale: ref[2] > 0 ? t[2] / ref[2] : 0, k,
+      darken: Math.min(1, Math.max(0, darken)) };
+  },
+  // 与 python transform_scalar 数学一致；l_hi 用 None（无逐贴图拉伸）
+  transformPixel(p, r, g, b) {
+    let [h, l, s] = this.rgb2hls(r, g, b);
+    let darkened = false;
+    if (p.darken > 0) {
+      const wl = Math.min(1, Math.max(0, (l - 0.72) / 0.08));
+      const ws = Math.min(1, Math.max(0, (0.07 - s) / 0.03));
+      const dw = wl * ws;
+      if (dw > 0) { l = l + (0.52 - l) * p.darken * dw; darkened = true; }
+    }
+    const w = this.bandWeight(h * 360);
+    if (w <= 1e-6 || s < this.MIN_SAT || l < this.MIN_LIGHT || l > this.MAX_LIGHT) {
+      return darkened ? this.hls2rgb(h, l, s).map(c => Math.round(c * 255)) : null;
+    }
+    let dh = (p.t_h - h) % 1; if (dh > 0.5) dh -= 1;
+    const nh = (h + dh * w) % 1;
+    const ns = Math.min(1, s * p.sat_scale);
+    let nl = l * (p.t_l / p.ref_l) / p.k;
+    nl = Math.min(nl, 1);
+    const out = this.hls2rgb(nh, nl, ns).map(c => Math.max(0, Math.min(255, Math.round(c * 255))));
+    if (w >= 1 - 1e-9) return out;
+    return out.map((o, i) => Math.round(o * w + [r, g, b][i] * (1 - w)));
+  },
+};
+/*COLORLIB-END*/
+
+function hex() {
+  const [r, g, b] = COLORLIB.hsv2rgb(state.hsv.h, state.hsv.s, state.hsv.v);
+  return COLORLIB.rgb2hex(r, g, b);
 }
-function rgb2hex(r, g, b) {
-  return '#' + [r, g, b].map(v => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join('').toUpperCase();
-}
-function rgb2hsl(r, g, b) {
-  r /= 255; g /= 255; b /= 255;
-  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
-  let h = 0;
-  if (d) {
-    if (mx === r) h = ((g - b) / d) % 6;
-    else if (mx === g) h = (b - r) / d + 2;
-    else h = (r - g) / d + 4;
-    h *= 60; if (h < 0) h += 360;
-  }
-  const l = (mx + mn) / 2;
-  const s = d ? d / (1 - Math.abs(2 * l - 1)) : 0;
-  return { h, s: s * 100, l: l * 100 };
-}
-function hsl2rgb(h, s, l) {
-  s /= 100; l /= 100;
-  const c = (1 - Math.abs(2 * l - 1)) * s;
-  const hp = (h % 360) / 60;
-  const x = c * (1 - Math.abs(hp % 2 - 1));
-  let r = 0, g = 0, b = 0;
-  if (hp < 1) [r, g, b] = [c, x, 0];
-  else if (hp < 2) [r, g, b] = [x, c, 0];
-  else if (hp < 3) [r, g, b] = [0, c, x];
-  else if (hp < 4) [r, g, b] = [0, x, c];
-  else if (hp < 5) [r, g, b] = [x, 0, c];
-  else [r, g, b] = [c, 0, x];
-  const m = l - c / 2;
-  return [Math.round((r + m) * 255), Math.round((g + m) * 255), Math.round((b + m) * 255)];
-}
-function hex() { const [r,g,b] = hsl2rgb(state.hsl.h, state.hsl.s, state.hsl.l); return rgb2hex(r,g,b); }
 async function api(path, opts = {}) {
   const r = await fetch(path, opts);
   const ct = r.headers.get('content-type') || '';
@@ -505,7 +627,6 @@ function appendLog(lines) {
     if (/出错|Traceback|错误/.test(text)) cls = 'err';
     else if (/警告/.test(text)) cls = 'warn';
     else if (/完成|已复制|统计/.test(text)) cls = 'ok';
-    else if (/开始|扫描|取消/.test(text)) cls = '';
     div.className = cls;
     div.textContent = text;
     log.appendChild(div);
@@ -514,16 +635,16 @@ function appendLog(lines) {
 }
 function setRunning(on) {
   state.running = on;
-  $('runHead').classList.toggle('running', on);
+  $('dock').classList.toggle('running', on);
   $('startBtn').disabled = on;
   $('cancelBtn').disabled = !on;
 }
 
-/* ================= 颜色取色器 ================= */
+/* ================= 取色器（HSV） ================= */
 const ring = $('ring'), ctx = ring.getContext('2d');
-let H = state.hsl.h;
+let H = state.hsv.h;
 function drawRing() {
-  const w = ring.width, cx = w / 2, cy = w / 2, R = w / 2 - 14;
+  const w = ring.width, cx = w / 2, cy = w / 2, R = w / 2 - 13;
   ctx.clearRect(0, 0, w, w);
   for (let a = 0; a < 360; a += 3) {
     const rad = (a - 90) * Math.PI / 180;
@@ -534,7 +655,6 @@ function drawRing() {
     ctx.arc(cx, cy, R, rad - 0.028, rad + 0.028);
     ctx.stroke();
   }
-  // 指针
   const pr = (H - 90) * Math.PI / 180;
   const px = cx + R * Math.cos(pr), py = cy + R * Math.sin(pr);
   ctx.beginPath();
@@ -546,27 +666,28 @@ function drawRing() {
   ctx.stroke();
   ctx.beginPath();
   ctx.arc(px, py, 4.5, 0, Math.PI * 2);
-  ctx.fillStyle = `hsl(${H}, 100%, 55%)`;
+  ctx.fillStyle = COLORLIB.hsv2rgb(H, 100, 100).map(v => Math.round(v)).join(',');
+  ctx.fillStyle = `rgb(${COLORLIB.hsv2rgb(H, 100, 100).join(',')})`;
   ctx.fill();
 }
 function ringAngle(e) {
   const rect = ring.getBoundingClientRect();
   const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
   const dx = e.clientX - cx, dy = e.clientY - cy;
-  if (dx === 0 && dy === 0) return state.hsl.h;
+  if (dx === 0 && dy === 0) return state.hsv.h;
   let a = Math.atan2(dy, dx) * 180 / Math.PI + 90;
   return ((a % 360) + 360) % 360;
 }
 ring.addEventListener('pointerdown', e => {
   ring.setPointerCapture(e.pointerId);
   H = ringAngle(e);
-  drawRing(); syncFromHsl();
+  drawRing(); syncFromHsv();
 });
 ring.addEventListener('pointermove', e => {
-  if (e.buttons & 1) { H = ringAngle(e); drawRing(); syncFromHsl(); }
+  if (e.buttons & 1) { H = ringAngle(e); drawRing(); syncFromHsv(); }
 });
 
-function makeSlider(rowId, trackId, knobId, get, set) {
+function makeSlider(rowId, trackId, knobId, set) {
   const track = $(trackId), knob = $(knobId), row = $(rowId);
   function place(e) {
     const rect = track.getBoundingClientRect();
@@ -577,55 +698,55 @@ function makeSlider(rowId, trackId, knobId, get, set) {
   }
   row.addEventListener('pointerdown', e => {
     row.setPointerCapture(e.pointerId);
-    set(place(e)); syncFromHsl();
+    set(place(e)); syncFromHsv();
   });
   row.addEventListener('pointermove', e => {
-    if (e.buttons & 1) { set(place(e)); syncFromHsl(); }
+    if (e.buttons & 1) { set(place(e)); syncFromHsv(); }
   });
 }
-makeSlider('sRow', 'sTrack', 'sKnob', () => state.hsl.s / 100, p => { state.hsl.s = p * 100; });
-makeSlider('lRow', 'lTrack', 'lKnob', () => state.hsl.l / 100, p => { state.hsl.l = p * 100; });
+makeSlider('sRow', 'sTrack', 'sKnob', p => { state.hsv.s = p * 100; });
+makeSlider('vRow', 'vTrack', 'vKnob', p => { state.hsv.v = p * 100; });
 
+function twoPoint(c1, c2) { return `linear-gradient(90deg, rgb(${c1.join(',')}), rgb(${c2.join(',')}))`; }
 function refreshBars() {
-  const { h, s, l } = state.hsl;
-  $('sTrack').style.background = `linear-gradient(90deg, hsl(${h} 0% ${l}%), hsl(${h} 100% ${l}%))`;
-  $('lTrack').style.background = `linear-gradient(90deg, hsl(${h} ${s}% 0%), hsl(${h} ${s}% 50%), hsl(${h} ${s}% 100%))`;
+  const { h, s, v } = state.hsv;
+  const ph = COLORLIB.hsv2rgb(h, 100, 100);
+  const pure = COLORLIB.hsv2rgb(h, s, 100);
+  const gray = COLORLIB.hsv2rgb(h, 0, v);
+  $('sTrack').style.background = twoPoint(gray, ph);
+  $('vTrack').style.background = twoPoint([0, 0, 0], pure);
   $('sKnob').style.left = s + '%';
-  $('lKnob').style.left = l + '%';
+  $('vKnob').style.left = v + '%';
   $('sVal').textContent = Math.round(s) + '%';
-  $('lVal').textContent = Math.round(l) + '%';
+  $('vVal').textContent = Math.round(v) + '%';
 }
-function syncFromHsl() {
+function syncFromHsv() {
   refreshBars();
   const hx = hex();
   $('hexIn').value = hx;
   applyColor(hx);
-  // 高亮命中的预设
   document.querySelectorAll('.chip').forEach(c =>
     c.classList.toggle('active', c.dataset.hex === hx));
 }
 function applyColor(hx) {
-  const [r, g, b] = hex2rgb(hx) || [255, 186, 92];
   $('swatch').style.background = hx;
   document.documentElement.style.setProperty('--accent', hx);
   $('legendBar').style.background = hx;
-  $('mapLine').innerHTML =
-    '参考蓝 <code>#59C7C2</code> <span class="arrow">→</span> <code>' + (hex2rgb(hx) ? hx : '#FFBA5C') + '</code>' +
-    ' · <span style="color:var(--muted)">深青底变成目标色的暗色版，高光变亮色版</span>';
   const defName = $('nameIn');
-  if (!defName.dataset.touched) defName.value = 'TNO UI ' + (hex2rgb(hx) ? hx : '#FFBA5C') + ' GUI';
+  if (!defName.dataset.touched) defName.value = 'TNO UI ' + hx + ' GUI';
 }
 $('hexIn').addEventListener('change', () => {
-  let hx = $('hexIn').value.trim().replace('#', '').toUpperCase();
-  if (/^[0-9A-F]{6}$/.test(hx)) {
-    hx = '#' + hx;
-    const { h, s, l } = rgb2hsl(...hex2rgb(hx));
-    state.hsl = { h, s, l };
+  let hx = $('hexIn').value.trim();
+  const rgb = COLORLIB.hex2rgb(hx);
+  if (rgb) {
+    hx = COLORLIB.rgb2hex(...rgb);
+    const { h, s, v } = COLORLIB.rgb2hsv(...rgb);
+    state.hsv = { h, s, v };
     H = h;
     drawRing(); refreshBars(); applyColor(hx);
     document.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.hex === hx));
   } else {
-    $('hexIn').value = hex();  // 非法输入回填
+    $('hexIn').value = hex();
   }
 });
 
@@ -640,12 +761,46 @@ function renderPresets() {
     c.innerHTML = `<span class="dot" style="background:${hexv}"></span>${label.split('（')[0]}`;
     c.title = label;
     c.onclick = () => {
-      const { h, s, l } = rgb2hsl(...hex2rgb(hexv));
-      state.hsl = { h, s, l };
+      const { h, s, v } = COLORLIB.rgb2hsv(...COLORLIB.hex2rgb(hexv));
+      state.hsv = { h, s, v };
       H = h;
-      drawRing(); refreshBars(); syncFromHsl();
+      drawRing(); refreshBars(); syncFromHsv();
     };
     box.appendChild(c);
+  }
+}
+
+/* ================= 实时改色预览（与生成核心同一套数学） ================= */
+const PV_SAMPLES = [
+  ['深青底色', 6, 16, 21],
+  ['中调蓝', 40, 105, 112],
+  ['参考蓝', 89, 199, 194],
+  ['高光亮蓝', 165, 235, 228],
+  ['纸张亮白', 232, 233, 230],
+  ['纯白', 255, 255, 255],
+  ['灰阶文字', 150, 150, 150],
+  ['红色强调', 214, 74, 74],
+];
+function renderPvStrip() {
+  const grid = $('pvGrid');
+  grid.innerHTML = '';
+  const target = COLORLIB.hex2rgb(hex()) || [255, 186, 92];
+  const darken = parseInt($('darkenRange').value) / 100;
+  const params = COLORLIB.makeParams(target, darken);
+  for (const [name, r, g, b] of PV_SAMPLES) {
+    const item = document.createElement('div');
+    item.className = 'pv-item';
+    const out = COLORLIB.transformPixel(params, r, g, b);
+    const [or, og, ob] = out || [r, g, b];
+    const changed = out !== null && !(r === or && g === og && b === ob);
+    item.innerHTML = `<div class="pv-name">${name}</div>
+      <div class="pv-pair">
+        <div class="pv-chip" style="background:rgb(${r},${g},${b})"></div>
+        <span class="pv-arrow">→</span>
+        <div class="pv-chip" style="background:rgb(${or},${og},${ob});${changed ? '' : 'opacity:.55'}"></div>
+      </div>`;
+    item.title = `原 rgb(${r},${g},${b}) → 后 rgb(${or},${og},${ob})${changed ? '' : '（不改变）'}`;
+    grid.appendChild(item);
   }
 }
 
@@ -723,7 +878,7 @@ async function startJob() {
   const out = $('outIn').value.trim();
   if (mode === 'generate' && !out) { toast('请填写输出目录', 'err'); return; }
   const hx = hex();
-  if (!hex2rgb(hx)) { toast('颜色格式错误', 'err'); return; }
+  if (!COLORLIB.hex2rgb(hx)) { toast('颜色格式错误', 'err'); return; }
 
   const payload = {
     mods, color: hx, mode,
@@ -744,14 +899,13 @@ async function startJob() {
     state.seq = 0;
     $('log').innerHTML = '';
     setRunning(true);
+    $('progCard').style.display = 'block';
     $('progCard').classList.add('show');
+    $('idleHint').style.display = 'none';
     $('statsGrid').classList.remove('show');
-    $('postActions').style.display = 'none';
     $('pvCard').classList.remove('show');
-    const pctTxt = (mode === 'scan') ? '扫描中…' : '正在生成…';
-    $('cancelSpin').style.display = 'none';
-    $('cancelBtn').innerHTML = '<span class="spin" id="cancelSpin"></span> 取消';
-    appendLog([[0, pctTxt + '（作业 ' + d.id + '）']]);
+    appendLog([[0, (mode === 'scan' ? '扫描中…' : '正在生成…') + '（作业 ' + d.id + '）']]);
+    $('resultCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     poll();
   } catch (e) { toast('启动失败: ' + e.message, 'err'); }
 }
@@ -772,6 +926,9 @@ async function poll() {
     $('progFill').style.width = pct + '%';
     $('progPct').textContent = pct + '%';
     $('progTxt').textContent = `${p.i} / ${p.n} 个文件 · 已改色 ${p.blue}`;
+    $('dockFill').style.width = pct + '%';
+    $('dockPct').textContent = pct + '%';
+    $('dockTxt').textContent = `${p.i} / ${p.n}`;
   }
   if (d.status !== 'running') { finish(d); return; }
   setTimeout(poll, 400);
@@ -791,7 +948,6 @@ function finish(d) {
     $('preview').src = '/api/jobs/' + d.id + '/preview?t=' + Date.now();
     $('pvCard').classList.add('show');
   }
-  if (d.status === 'done' || d.stats) $('postActions').style.display = 'flex';
   const om = $('openModBtn');
   if (d.installed_to) { om.style.display = ''; om.dataset.path = d.installed_to; }
   else om.style.display = 'none';
@@ -828,7 +984,10 @@ $('assembleBtn').onclick = async () => {
   } catch (e) { toast('自动装配失败: ' + e.message, 'err'); }
 };
 $('browseOutBtn').onclick = () => pickDir(d => { $('outIn').value = d; });
-$('darkenRange').oninput = e => { $('darkenVal').textContent = e.target.value + '%'; };
+$('darkenRange').oninput = e => {
+  $('darkenVal').textContent = e.target.value + '%';
+  renderPvStrip();
+};
 $('nameIn').addEventListener('input', () => { $('nameIn').dataset.touched = '1'; });
 $('modeSeg').querySelectorAll('button').forEach(b => {
   b.onclick = () => {
@@ -871,9 +1030,10 @@ $('clearLogBtn').onclick = () => { $('log').innerHTML = ''; };
   $('outIn').value = state.state.default_out;
   $('nameIn').value = 'TNO UI #FFBA5C GUI';
   applyColor('#FFBA5C');
-  const hs = rgb2hsl(255, 186, 92);
-  state.hsl = hs; H = hs.h;
-  drawRing(); refreshBars(); syncFromHsl();
+  const hs = COLORLIB.rgb2hsv(255, 186, 92);
+  state.hsv = hs; H = hs.h;
+  drawRing(); refreshBars(); syncFromHsv();
+  renderPvStrip();
   const hi = state.state.hoi4_mod_dir;
   $('installHint').textContent = hi ? (hi + ' — 生成后自动放置，启动器里直接启用') : '未检测到 HOI4 mod 目录，将跳过（可稍后手动复制）';
   if (!hi) $('installChk').checked = false;
