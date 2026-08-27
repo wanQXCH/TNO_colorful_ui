@@ -31,14 +31,20 @@ python tno_color_gen.py
    - `preview.png` —— 原版/换色后对照图，不用进游戏即可预览效果
 
 **默认输出未压缩 32 位 BGRA 贴图**（与 TNO 本体 UI 完全一致，零压缩瑕疵，
-体积约 1.7 GB）——DXT5 块状压缩会在细线条/渐变上产生纯色噪点与明暗条纹，
+体积约 1.3 GB）——DXT5 块状压缩会在细线条/渐变上产生纯色噪点与明暗条纹，
 因此不再作为默认；如确需缩小体积可勾选“压缩输出 DXT5”（体积约小 4 倍，可能有瑕疵）。
+
+**多进程并行**：默认按 CPU 数并行（最多 8 进程），全量生成约 2~3 分钟
+（单进程需 8~10 分钟）；命令行可用 `--jobs N` 调整。
 
 ### 方式二：命令行
 
 ```
 # 生成橙色（TNO 本体 + 汉化 mod 一起处理）
 python tno_color_gen.py --tno "D:\heart of iron\SW00383\langou123\hoi4\mod\2438003901" --overlay "D:\heart of iron\SW00383\langou123\hoi4\mod\2243912940" --preset orange --out TNO_UI_Orange
+
+# 指定并行进程数
+python tno_color_gen.py --jobs 4 --color "#F5A524" --out TNO_UI_Gold
 
 # 自定义颜色（纯白，严格按输入色输出）
 python tno_color_gen.py --color "#FFFFFF" --out TNO_UI_White
@@ -89,11 +95,13 @@ TNO 界面贴图（`.dds` 绝大多数为未压缩 32 位 BGRA，另有少量 24
 - `event_pictures` / `superevent_pictures` / `loadingscreens` / `background` /
   `custom_news_headers` / `fonts` / `FX` / `particles` / `entities` /
   `train_gfx_database` / `models`（3D 模型贴图）
-- **国策图标**（`gfx/interface/goals/**`）、**领袖头像/照片**（`gfx/leaders/**`）、
-  **国旗类贴图**（文件名含 flag）——保持原样
+- **国策图标**（`gfx/interface/goals/**`）——整体保持原样，仅白名单例外
+  （`goal_unknown.dds` 未知国策占位图标会换色）；
+  **领袖头像/照片**（`gfx/leaders/**`）、**国旗类贴图**（文件名含 flag）——保持原样
 - **照片/大幅背景**（采样去重色数 > 4000，如主菜单背景、选国背景、事件纸张、
   实拍照片、人像）——整体跳过，天空/水面等局部蓝色不会被目标色替代
-- 几乎没有蓝色像素的贴图（个别噪点不算）
+- **换色后几乎无变化的贴图**（可见像素变化 < 30 个）不打包——输出里每个文件
+  都是真正变了色的
 
 ## 依赖
 

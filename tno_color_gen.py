@@ -982,17 +982,20 @@ def patch_font_colors(roots, out_root, params):
 # 扫描与生成
 # ---------------------------------------------------------------------------
 
-# 不处理的目录（艺术图/模型/照片/字体图集/国策图标/领袖头像/国旗等）
+# 不处理的目录（艺术图/模型/照片/字体图集/领袖头像/国旗等）
 EXCLUDE_DIRS = {
     'event_pictures', 'superevent_pictures', 'loadingscreens', 'flags',
     'background', 'custom_news_headers', 'fonts', 'FX', 'particles',
     'entities', 'train_gfx_database', 'models',
-    'goals',          # 国策图标（焦点图标）
     'leaders',        # 领袖头像/照片
 }
 
+# 国策图标（goals/**）整体排除，但白名单内的占位/通用图标仍需换色
+GOAL_WHITELIST = {'goal_unknown.dds'}
+
 BLUE_MIN_COUNT = 12      # 至少这么多蓝色像素
 BLUE_MIN_FRAC = 0.006    # 且占非透明像素比例不低于此
+MIN_CHANGE_PX = 30       # 换色后可见像素变化少于这个数视为“几乎没变”，不打包
 PHOTO_MAX_COLORS = 4000      # 采样去重色数超过此值视为照片/大幅背景，整体跳过不换色
 PHOTO_MAX_COLORS_LARGE = 2500  # 大图（超过 PHOTO_MIN_AREA 像素）的复杂度阈值（收紧）
 PHOTO_MIN_AREA = 300000       # 大图面积阈值（约 550x550）
@@ -1130,59 +1133,96 @@ def collect_file_map(roots):
     return file_map
 
 
-def scan_and_build(roots, params, out_root,
-                   progress_cb=None, log_cb=None, want_list=False, dry_run=False,
-                   compress=False):
-    """扫描多源 gfx，把蓝色贴图换色后写入 out_root。返回统计信息。"""
-    log = log_cb or (lambda s: None)
-    stats = {"scanned": 0, "blue": 0, "skipped_dir": 0, "unsupported": 0,
-             "errors": [], "changed_bytes": 0}
-    jobs = []
-    file_map = collect_file_map(roots)
-    all_files = sorted(file_map)
-    total = len(all_files)
-    for idx, rel in enumerate(all_files):
-        root = file_map[rel]
+def _process_one(item):
+    """多进程工作单元：处理单个贴图。返回 (action, rel, ...)。
+    action: blue/skip/photo/tiny/error。"""
+    rel, root, out_root, params, compress, dry_run = item
+    try:
         kind = classify_file(rel)
         if kind is None:
-            stats["skipped_dir"] += 1
-            continue
+            return ("skip", rel)
         # 国旗类贴图一律不换色（保持各国国旗原色）
         if 'flag' in os.path.basename(rel).lower():
-            stats["skipped_dir"] += 1
-            continue
-        stats["scanned"] += 1
-        try:
-            w, h, bgra, meta = read_for_scan(root, rel, kind)
-        except Exception as e:
-            stats["unsupported"] += 1
-            stats["errors"].append((rel, str(e)))
-            continue
+            return ("skip", rel)
+        # 国策图标整体排除，白名单例外
+        if os.sep + 'goals' + os.sep in rel and os.path.basename(rel) not in GOAL_WHITELIST:
+            return ("skip", rel)
+        w, h, bgra, meta = read_for_scan(root, rel, kind)
         if bgra is None:
-            stats["skipped_dir"] += 1
-            continue
+            return ("skip", rel)
         # 照片/大幅背景识别：采样去重色数过高视为照片（天空/水面等局部蓝色不换色）；
         # 大图（面积超过阈值）收紧复杂度阈值，避免大幅背景被误处理
         tc = texture_complexity(bgra, w, h)
         if tc > PHOTO_MAX_COLORS or (w * h > PHOTO_MIN_AREA and tc > PHOTO_MAX_COLORS_LARGE):
-            stats["photo_skip"] = stats.get("photo_skip", 0) + 1
-            continue
+            return ("photo", rel)
         blue, opaque = count_blue(bgra, w, h)
-        if blue >= BLUE_MIN_COUNT and (blue / max(1, opaque)) >= BLUE_MIN_FRAC:
-            l_hi = inband_l_hi(bgra, w, h)
-            nb = apply_transform(params, bgra, w, h, l_hi=l_hi)
-            if not dry_run:
-                write_image(out_root, rel, kind, w, h, nb, meta, compress=compress)
+        if blue < BLUE_MIN_COUNT or (blue / max(1, opaque)) < BLUE_MIN_FRAC:
+            return ("skip", rel)
+        l_hi = inband_l_hi(bgra, w, h)
+        nb = apply_transform(params, bgra, w, h, l_hi=l_hi)
+        ch, vis = count_changed(nb, bgra, w, h)
+        if ch < MIN_CHANGE_PX:
+            return ("tiny", rel)
+        if not dry_run:
+            write_image(out_root, rel, kind, w, h, nb, meta, compress=compress)
+        return ("blue", rel, w, h, blue, opaque, len(nb))
+    except Exception as e:
+        return ("error", rel, str(e))
+
+
+def scan_and_build(roots, params, out_root,
+                   progress_cb=None, log_cb=None, want_list=False, dry_run=False,
+                   compress=False, jobs=0):
+    """扫描多源 gfx，把蓝色贴图换色后写入 out_root。返回统计信息。
+    jobs: 并行进程数（0 = 自动按 CPU 数，1 = 单进程）。"""
+    log = log_cb or (lambda s: None)
+    stats = {"scanned": 0, "blue": 0, "skipped_dir": 0, "unsupported": 0,
+             "tiny": 0, "photo_skip": 0, "errors": [], "changed_bytes": 0}
+    out_jobs = []
+    file_map = collect_file_map(roots)
+    items = [(rel, root, out_root, params, compress, dry_run)
+             for rel, root in sorted(file_map.items())]
+    total = len(items)
+
+    def accumulate(res, i):
+        action = res[0]
+        if action == "blue":
             stats["blue"] += 1
-            stats["changed_bytes"] += len(nb)
-            jobs.append(rel)
+            stats["changed_bytes"] += res[6]
+            out_jobs.append(res[1])
             if want_list:
-                log("  改色 %s  (%dx%d, 蓝像素 %d/%d)" % (rel, w, h, blue, opaque))
+                log("  改色 %s  (%dx%d, 蓝像素 %d/%d)" % (res[1], res[2], res[3], res[4], res[5]))
+        elif action == "photo":
+            stats["photo_skip"] += 1
+        elif action == "tiny":
+            stats["tiny"] += 1
+            stats["skipped_dir"] += 1
+        elif action == "error":
+            stats["unsupported"] += 1
+            stats["errors"].append((res[1], res[2]))
         else:
             stats["skipped_dir"] += 1
-        if progress_cb and (idx % 25 == 0 or idx == total - 1):
-            progress_cb(idx + 1, total, stats["blue"])
-    return stats, jobs
+        if progress_cb and (i % 25 == 0 or i == total - 1):
+            progress_cb(i + 1, total, stats["blue"])
+
+    if jobs != 1 and total > 200 and HAS_NUMPY:
+        import multiprocessing
+        if jobs <= 0:
+            jobs = min(multiprocessing.cpu_count(), 8)
+        try:
+            ctx = multiprocessing.get_context('spawn')
+            with ctx.Pool(processes=jobs) as pool:
+                for i, res in enumerate(pool.imap_unordered(_process_one, items, chunksize=64)):
+                    accumulate(res, i)
+        except Exception:
+            # 并行失败则退回单进程
+            for i, item in enumerate(items):
+                accumulate(_process_one(item), i)
+    else:
+        for i, item in enumerate(items):
+            accumulate(_process_one(item), i)
+    stats["scanned"] = total
+    return stats, out_jobs
 
 
 # ---------------------------------------------------------------------------
@@ -1351,8 +1391,9 @@ def mod_name_from_descriptor(root):
 
 
 def generate_mod(roots, target_rgb, out_root, mod_name=None, darken=0.0,
-                 compress=False, progress_cb=None, log_cb=None):
-    """roots: 源目录列表（第一个为基础 TNO，后面的汉化/UI 覆盖 mod 优先级更高）。"""
+                 compress=False, jobs=0, progress_cb=None, log_cb=None):
+    """roots: 源目录列表（第一个为基础 TNO，后面的汉化/UI 覆盖 mod 优先级更高）。
+    jobs: 并行进程数（0=自动）。"""
     log = log_cb or (lambda s: None)
     params = make_params(target_rgb, darken)
     if mod_name is None:
@@ -1361,9 +1402,9 @@ def generate_mod(roots, target_rgb, out_root, mod_name=None, darken=0.0,
     os.makedirs(out_root, exist_ok=True)
     t0 = time_now()
     log("开始扫描 %s ..." % " + ".join(os.path.abspath(r) for r in roots))
-    stats, jobs = scan_and_build(roots, params, out_root,
-                                 progress_cb=progress_cb, log_cb=log,
-                                 compress=compress)
+    stats, jobs_out = scan_and_build(roots, params, out_root,
+                                     progress_cb=progress_cb, log_cb=log,
+                                     compress=compress, jobs=jobs)
     # 字体文字配色（加载界面默认文字色 D={89,199,194} 等；含汉化 mod 的字体）
     nfonts = patch_font_colors(roots, out_root, params)
     if nfonts:
@@ -1389,14 +1430,14 @@ def generate_mod(roots, target_rgb, out_root, mod_name=None, darken=0.0,
     make_preview(roots, params, out_root, log)
     with open(os.path.join(out_root, 'README.txt'), 'w', encoding='utf-8') as f:
         f.write(readme_text(mod_name, target_rgb, base, deps))
-    log("完成: 扫描 %d 个图片，改色 %d 个，跳过 %d 个，不支持 %d 个，耗时 %.1fs" % (
-        stats["scanned"], stats["blue"], stats["skipped_dir"],
-        stats["unsupported"], time_now() - t0))
+    log("完成: 扫描 %d 个图片，改色 %d 个，跳过 %d 个（含照片 %d、几乎无变化 %d），不支持 %d 个，耗时 %.1fs" % (
+        stats["scanned"], stats["blue"], stats["skipped_dir"], stats["photo_skip"],
+        stats["tiny"], stats["unsupported"], time_now() - t0))
     if stats["errors"]:
         log("警告: %d 个文件无法读取(已跳过):" % len(stats["errors"]))
         for rel, err in stats["errors"][:10]:
             log("   %s: %s" % (rel, err))
-    return stats, jobs
+    return stats, jobs_out
 
 
 def readme_text(mod_name, target, base, deps):
@@ -1538,6 +1579,8 @@ def cli_main(argv):
     ap.add_argument('--darken', type=float, default=0.0, help='亮灰/白压暗强度 0~1(暗色系风格)')
     ap.add_argument('--install', action='store_true', help='生成后复制到 HOI4 mod 目录')
     ap.add_argument('--compress', action='store_true', help='输出 DXT5 压缩 DDS（体积约小 4 倍，但块状压缩可能产生噪点/条纹，不推荐）')
+    ap.add_argument('--jobs', type=int, default=0,
+                    help='并行进程数（默认自动按 CPU 数，最多 8；1 = 单进程）')
     ap.add_argument('--scan-only', action='store_true', help='只扫描列出会被改色的文件，不生成')
     ap.add_argument('--list', action='store_true', help='输出每个改色文件路径')
     args = ap.parse_args(argv)
@@ -1561,9 +1604,11 @@ def cli_main(argv):
         params = make_params(target, args.darken)
         print("扫描 %s ..." % " + ".join(roots))
         stats, jobs = scan_and_build(roots, params, os.path.join(tno, '.scan_tmp'),
-                                     log_cb=print, want_list=args.list, dry_run=True)
-        print("统计: 扫描 %d，将改色 %d，跳过 %d，不支持 %d" % (
-            stats["scanned"], stats["blue"], stats["skipped_dir"], stats["unsupported"]))
+                                     log_cb=print, want_list=args.list, dry_run=True,
+                                     jobs=args.jobs)
+        print("统计: 扫描 %d，将改色 %d，跳过 %d（照片 %d），不支持 %d" % (
+            stats["scanned"], stats["blue"], stats["skipped_dir"], stats["photo_skip"],
+            stats["unsupported"]))
         return 0
     out = args.out or os.path.join(os.getcwd(), 'generated_mods',
                                    'TNO_UI_%02X%02X%02X' % target)
@@ -1571,6 +1616,7 @@ def cli_main(argv):
     log = lambda s: print(s)
     stats, jobs = generate_mod(roots, target, out, mod_name=mod_name,
                                darken=args.darken, compress=args.compress,
+                               jobs=args.jobs,
                                progress_cb=lambda i, n, b: None, log_cb=log)
     print("\n生成完成: %s" % out)
     print("共改色 %d 个贴图，输出体积 %.1f MB" % (stats["blue"], stats["changed_bytes"] / 1048576))
