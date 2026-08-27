@@ -993,6 +993,13 @@ EXCLUDE_DIRS = {
 # 国策图标（goals/**）整体排除，但白名单内的占位/通用图标仍需换色
 GOAL_WHITELIST = {'goal_unknown.dds'}
 
+# 按文件名模式保护的贴图（饼图/船坞等语义色块，不应被目标色替代）
+# pie 匹配需避开 Pierre/Pieter/Pieces/Pierce/Pied 等单词
+PROTECT_PATTERNS = [
+    re.compile(r'(?:^|[^a-z])pie(?:chart|_|[^a-z]|$)'),   # 饼图 pie/piechart/pie_*/_pie
+    re.compile(r'dockyard'),                              # 船坞
+]
+
 BLUE_MIN_COUNT = 12      # 至少这么多蓝色像素
 BLUE_MIN_FRAC = 0.006    # 且占非透明像素比例不低于此
 MIN_CHANGE_PX = 30       # 换色后可见像素变化少于这个数视为“几乎没变”，不打包
@@ -1141,9 +1148,14 @@ def _process_one(item):
         kind = classify_file(rel)
         if kind is None:
             return ("skip", rel)
+        base = os.path.basename(rel).lower()
         # 国旗类贴图一律不换色（保持各国国旗原色）
-        if 'flag' in os.path.basename(rel).lower():
+        if 'flag' in base:
             return ("skip", rel)
+        # 饼图/船坞等按名称模式保护的贴图
+        for pp in PROTECT_PATTERNS:
+            if pp.search(base):
+                return ("skip", rel)
         # 国策图标整体排除，白名单例外
         if os.sep + 'goals' + os.sep in rel and os.path.basename(rel) not in GOAL_WHITELIST:
             return ("skip", rel)
