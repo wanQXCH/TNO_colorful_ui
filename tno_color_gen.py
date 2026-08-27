@@ -1429,6 +1429,20 @@ def mod_name_from_descriptor(root):
     return None
 
 
+def mod_deps_from_descriptor(root):
+    """从 descriptor.mod 读取依赖的 mod 名列表。"""
+    p = os.path.join(root, 'descriptor.mod')
+    if os.path.isfile(p):
+        try:
+            txt = open(p, 'r', encoding='utf-8', errors='ignore').read(4000)
+            m = re.search(r'dependencies\s*=\s*\{(.*?)\}', txt, re.S)
+            if m:
+                return re.findall(r'"([^"]+)"', m.group(1))
+        except Exception:
+            pass
+    return []
+
+
 def generate_mod(roots, target_rgb, out_root, mod_name=None, darken=0.0,
                  compress=False, jobs=0, progress_cb=None, log_cb=None):
     """roots: 源目录列表（第一个为基础 TNO，后面的汉化/UI 覆盖 mod 优先级更高）。
@@ -1554,21 +1568,18 @@ def _is_tno_root(p):
     return _tno_score(p) > 0 and os.path.isdir(os.path.join(p, 'gfx'))
 
 
-def find_tno_root(cwd):
+def _find_tno_candidates(cwd):
+    """在当前目录及常见游戏 mod 目录里找所有 TNO 系 mod，返回 [(路径, 评分), ...]。"""
     cand = [cwd]
     for d in sorted(os.listdir(cwd)):
         p = os.path.join(cwd, d)
         if os.path.isdir(p):
             cand.append(p)
-    best = None
-    best_score = -1
+    found = {}
     for p in cand:
         sc = _tno_score(p) if _is_tno_root(p) else -1
-        if sc > best_score:
-            best, best_score = p, sc
-    if best:
-        return best
-    # 常见游戏 mod 目录里找（文档目录 + Steam 创意工坊 + 自定义路径）
+        if sc > 0:
+            found[p] = sc
     bases = []
     for base in (os.path.expanduser('~'), os.environ.get('USERPROFILE', '')):
         bases.append(os.path.join(base, 'Documents', 'Paradox Interactive', 'Hearts of Iron IV', 'mod'))
@@ -1586,11 +1597,43 @@ def find_tno_root(cwd):
                 dirs[:] = []
                 continue
             if _is_tno_root(dp):
-                sc = _tno_score(dp)
-                if sc > best_score:
-                    best, best_score = dp, sc
+                found[dp] = _tno_score(dp)
             dirs[:] = [d for d in dirs if d.lower() != 'generated_mods']
-    return best
+    return found
+
+
+def find_tno_root(cwd):
+    """找评分最高的 TNO 本体（兼容旧接口）。"""
+    found = _find_tno_candidates(cwd)
+    if not found:
+        return None
+    return max(found, key=lambda p: found[p])
+
+
+def assemble_mods(cwd):
+    """自动装配源列表：[TNO 本体] + [依赖链指向它的汉化/子 mod]，按加载顺序排列。
+    无需区分本体与覆盖 mod——所有 TNO 系 mod 统一参与换色，
+    后面的优先级更高（同名贴图以高优先级为准）。"""
+    found = _find_tno_candidates(cwd)
+    if not found:
+        return []
+    base = max(found, key=lambda p: found[p])
+    included = [base]
+    included_names = {mod_name_from_descriptor(base)}
+    rest = [p for p in found if p != base]
+    # 迭代加入“依赖已包含 mod”的候选（如汉化依赖本体、LAR 依赖本体+汉化）
+    changed = True
+    while changed and rest:
+        changed = False
+        for p in list(rest):
+            if any(d in included_names for d in mod_deps_from_descriptor(p)):
+                included.append(p)
+                nm = mod_name_from_descriptor(p)
+                if nm:
+                    included_names.add(nm)
+                rest.remove(p)
+                changed = True
+    return included
 
 
 def find_hoi4_mod_dir():
@@ -1607,10 +1650,12 @@ def find_hoi4_mod_dir():
 
 def cli_main(argv):
     ap = argparse.ArgumentParser(description="TNO UI 换色 Mod 生成器")
-    ap.add_argument('--tno', help='TNO 本体目录(含 descriptor.mod 与 gfx/)')
+    ap.add_argument('--mods', nargs='+',
+                    help='所有 Mod 目录（TNO 本体 + 汉化 + 子 mod，按加载顺序，越靠后优先级越高；'
+                         '不填则自动检测）')
+    ap.add_argument('--tno', help='（旧参数）TNO 本体目录，与 --overlay 一起使用')
     ap.add_argument('--overlay', action='append', default=[],
-                    help='汉化/UI 覆盖 mod 目录（可多次指定，优先级高于 TNO 本体；'
-                         '如汉化 mod 2243912940）')
+                    help='（旧参数）覆盖 mod 目录（可多次指定，优先级高于 --tno）')
     ap.add_argument('--color', help='目标颜色 #RRGGBB')
     ap.add_argument('--preset', choices=[p[0] for p in PRESETS], help='预设颜色')
     ap.add_argument('--out', help='输出目录')
@@ -1623,13 +1668,25 @@ def cli_main(argv):
     ap.add_argument('--scan-only', action='store_true', help='只扫描列出会被改色的文件，不生成')
     ap.add_argument('--list', action='store_true', help='输出每个改色文件路径')
     args = ap.parse_args(argv)
-    tno = args.tno or find_tno_root(os.getcwd())
-    if not tno or not os.path.isdir(tno):
-        print("找不到 TNO 目录，请用 --tno 指定。")
-        return 1
-    roots = [tno] + [o for o in args.overlay if os.path.isdir(o)]
-    if len(args.overlay) != len(roots) - 1:
-        print("警告: 部分 --overlay 目录不存在，已忽略。")
+    # 统一源列表：--mods > 旧参数(--tno/--overlay) > 自动检测(本体+依赖它的子mod)
+    if args.mods:
+        roots = [m for m in args.mods if os.path.isdir(m)]
+        if len(roots) != len(args.mods):
+            print("警告: 部分 --mods 目录不存在，已忽略。")
+    elif args.tno or args.overlay:
+        tno = args.tno
+        if not tno or not os.path.isdir(tno):
+            print("找不到 TNO 目录，请用 --tno 或 --mods 指定。")
+            return 1
+        roots = [tno] + [o for o in args.overlay if os.path.isdir(o)]
+        if len(args.overlay) != len(roots) - 1:
+            print("警告: 部分 --overlay 目录不存在，已忽略。")
+    else:
+        roots = assemble_mods(os.getcwd())
+        if not roots:
+            print("未找到 TNO 相关 Mod 目录，请用 --mods 指定所有 Mod 路径。")
+            return 1
+        print("自动检测到 Mod 源: %s" % " ; ".join(roots))
     if args.preset:
         target = dict((p[0], p[2]) for p in PRESETS)[args.preset]
         pname = dict((p[0], p[1]) for p in PRESETS)[args.preset]
@@ -1642,7 +1699,7 @@ def cli_main(argv):
     if args.scan_only:
         params = make_params(target, args.darken)
         print("扫描 %s ..." % " + ".join(roots))
-        stats, jobs = scan_and_build(roots, params, os.path.join(tno, '.scan_tmp'),
+        stats, jobs = scan_and_build(roots, params, os.path.join(roots[0], '.scan_tmp'),
                                      log_cb=print, want_list=args.list, dry_run=True,
                                      jobs=args.jobs)
         print("统计: 扫描 %d，将改色 %d，跳过 %d（照片 %d），不支持 %d" % (
@@ -1702,28 +1759,21 @@ def gui_main():
     frm = ttk.Frame(root, padding=10)
     frm.pack(fill='both', expand=True)
 
-    # TNO 目录
-    ttk.Label(frm, text="TNO 本体目录（含 descriptor.mod 和 gfx/）:").grid(row=0, column=0, sticky='w', **pad)
-    tno_var = tk.StringVar(value=find_tno_root(os.getcwd()) or "")
-    tno_entry = ttk.Entry(frm, textvariable=tno_var, width=60)
-    tno_entry.grid(row=1, column=0, sticky='we', **pad)
-    ttk.Button(frm, text="浏览…", command=lambda: tno_var.set(
-        filedialog.askdirectory(title="选择 TNO 本体目录"))).grid(row=1, column=1, **pad)
-
-    # 汉化/UI 覆盖 mod 目录
-    ttk.Label(frm, text="汉化/UI 覆盖 mod 目录（可多个，用 ; 分隔，优先级高于 TNO；"
-                        "如汉化 mod 2243912940）:").grid(row=2, column=0, sticky='w', **pad)
-    ov_row = ttk.Frame(frm)
-    ov_row.grid(row=3, column=0, columnspan=2, sticky='we', **pad)
-    ov_var = tk.StringVar(value="")
-    ttk.Entry(ov_row, textvariable=ov_var, width=60).pack(side='left', fill='x', expand=True)
-    ttk.Button(ov_row, text="浏览…", command=lambda: ov_var.set(
-        filedialog.askdirectory(title="选择汉化/UI 覆盖 mod 目录"))).pack(side='left', padx=4)
+    # 所有 Mod 目录（TNO 本体 + 汉化 + 子 mod，统一列表）
+    ttk.Label(frm, text="所有 Mod 目录（TNO 本体 + 汉化 + 子 mod，用 ; 分隔，越靠后优先级越高）:")\
+        .grid(row=0, column=0, sticky='w', **pad)
+    mods_row = ttk.Frame(frm)
+    mods_row.grid(row=1, column=0, columnspan=2, sticky='we', **pad)
+    mods_var = tk.StringVar(value=";".join(assemble_mods(os.getcwd())))
+    mods_entry = ttk.Entry(mods_row, textvariable=mods_var, width=60)
+    mods_entry.pack(side='left', fill='x', expand=True)
+    ttk.Button(mods_row, text="浏览…", command=lambda: mods_var.set(
+        filedialog.askdirectory(title="选择 Mod 目录"))).pack(side='left', padx=4)
 
     # 颜色
-    ttk.Label(frm, text="目标颜色:").grid(row=4, column=0, sticky='w', **pad)
+    ttk.Label(frm, text="目标颜色:").grid(row=2, column=0, sticky='w', **pad)
     color_row = ttk.Frame(frm)
-    color_row.grid(row=5, column=0, sticky='w', **pad)
+    color_row.grid(row=3, column=0, sticky='w', **pad)
     color_var = tk.StringVar(value=hex_of(state["target"]))
     color_entry = ttk.Entry(color_row, textvariable=color_var, width=10)
     color_entry.pack(side='left')
@@ -1748,7 +1798,7 @@ def gui_main():
     ttk.Button(color_row, text="选色…", command=pick_color).pack(side='left', padx=4)
 
     presets_row = ttk.Frame(frm)
-    presets_row.grid(row=6, column=0, columnspan=2, sticky='w', **pad)
+    presets_row.grid(row=4, column=0, columnspan=2, sticky='w', **pad)
     ttk.Label(presets_row, text="预设:").pack(side='left')
     for key, label, rgb in PRESETS:
         def mk(rgb=rgb):
@@ -1762,7 +1812,7 @@ def gui_main():
 
     # 选项
     opt = ttk.LabelFrame(frm, text="选项", padding=8)
-    opt.grid(row=7, column=0, columnspan=2, sticky='we', **pad)
+    opt.grid(row=5, column=0, columnspan=2, sticky='we', **pad)
     darken_var = tk.DoubleVar(value=0.0)
     ttk.Label(opt, text="亮灰/白色压暗（暗色系风格）:").grid(row=0, column=0, sticky='w')
     darken_scale = ttk.Scale(opt, from_=0, to=1, variable=darken_var, length=220)
@@ -1775,9 +1825,9 @@ def gui_main():
                     variable=compress_var).grid(row=1, column=0, columnspan=3, sticky='w')
 
     # 输出
-    ttk.Label(frm, text="输出:").grid(row=8, column=0, sticky='w', **pad)
+    ttk.Label(frm, text="输出:").grid(row=6, column=0, sticky='w', **pad)
     out_row = ttk.Frame(frm)
-    out_row.grid(row=9, column=0, columnspan=2, sticky='we', **pad)
+    out_row.grid(row=7, column=0, columnspan=2, sticky='we', **pad)
     default_out = os.path.join(os.getcwd(), 'generated_mods', 'TNO_UI_FFBA5C')
     out_var = tk.StringVar(value=default_out)
     ttk.Entry(out_row, textvariable=out_var, width=60).pack(side='left', fill='x', expand=True)
@@ -1787,13 +1837,13 @@ def gui_main():
     moddir = find_hoi4_mod_dir()
     ttk.Checkbutton(frm, text=("生成后同时复制到 HOI4 mod 目录 (%s)" % moddir) if moddir
                     else "生成后同时复制到 HOI4 mod 目录（未检测到，请手动安装）",
-                    variable=install_var).grid(row=10, column=0, columnspan=2, sticky='w', **pad)
+                    variable=install_var).grid(row=8, column=0, columnspan=2, sticky='w', **pad)
 
     # 进度/日志
     prog = ttk.Progressbar(frm, maximum=1000)
-    prog.grid(row=11, column=0, columnspan=2, sticky='we', **pad)
+    prog.grid(row=9, column=0, columnspan=2, sticky='we', **pad)
     logtxt = tk.Text(frm, height=12, width=90, state='disabled', font=('Consolas', 9))
-    logtxt.grid(row=12, column=0, columnspan=2, sticky='nsew', **pad)
+    logtxt.grid(row=10, column=0, columnspan=2, sticky='nsew', **pad)
     frm.rowconfigure(12, weight=1)
     frm.columnconfigure(0, weight=1)
 
@@ -1804,7 +1854,7 @@ def gui_main():
         logtxt.configure(state='disabled')
 
     run_btn = ttk.Button(frm, text="开始生成", width=20)
-    run_btn.grid(row=13, column=0, columnspan=2, **pad)
+    run_btn.grid(row=11, column=0, columnspan=2, **pad)
 
     def open_out():
         import subprocess
@@ -1813,7 +1863,7 @@ def gui_main():
             os.startfile(d)  # noqa
 
     open_btn = ttk.Button(frm, text="打开输出文件夹", command=open_out, state='disabled')
-    open_btn.grid(row=14, column=0, columnspan=2, **pad)
+    open_btn.grid(row=12, column=0, columnspan=2, **pad)
 
     q = queue.Queue()
 
@@ -1847,9 +1897,10 @@ def gui_main():
     def start():
         if state["running"]:
             return
-        tno = tno_var.get()
-        if not tno or not os.path.isdir(tno):
-            messagebox.showerror("错误", "请选择有效的 TNO 本体目录")
+        roots = [p.strip() for p in mods_var.get().split(';') if p.strip()]
+        roots = [r for r in roots if os.path.isdir(r)]
+        if not roots:
+            messagebox.showerror("错误", "请填写有效的 Mod 目录（用 ; 分隔多个）")
             return
         try:
             target = parse_color(color_var.get())
@@ -1860,8 +1911,6 @@ def gui_main():
         if not out:
             messagebox.showerror("错误", "请填写输出目录")
             return
-        roots = [tno] + [o.strip() for o in ov_var.get().split(';') if o.strip()]
-        roots = [r for r in roots if os.path.isdir(r)]
         state["running"] = True
         run_btn.configure(state='disabled')
         open_btn.configure(state='disabled')

@@ -20,13 +20,14 @@
 python tno_color_gen.py
 ```
 
-1. 选择 TNO 本体目录（含 `descriptor.mod` 和 `gfx/` 的文件夹，即 2980739000 那种）；
-2. （可选）在“汉化/UI 覆盖 mod 目录”里填汉化 mod（如 2243912940）——它的贴图会
-   以更高优先级参与换色，不会再覆盖你的成果；可填多个，用 `;` 分隔；
-3. 点“选色…”或直接输入 `#RRGGBB`，或点预设色块（橙/深紫/红/绿/金/青/玫红/天蓝/石墨灰）；
-4. 可选：拖动“亮灰/白色压暗”滑杆做出暗色系风格；
-5. 选输出目录（或勾选自动复制到 HOI4 mod 目录）；
-6. 点“开始生成”，等待进度完成，打开输出文件夹：
+1. **所有 Mod 目录**（支持 TNO 本体、汉化、任何 sub mod / UI 覆盖 mod）：填一个或多个，
+   用 `;` 分隔，**越靠后优先级越高**（同名贴图以高优先级为准）。留空则自动装配：
+   在含 `descriptor.mod` 的目录（游戏 mod 目录 / 工作目录）下按 `dependencies`
+   自动找出 TNO 本体 + 汉化 + LAR 等全部相关 mod；
+2. 点“选色…”或直接输入 `#RRGGBB`，或点预设色块（橙/深紫/红/绿/金/青/玫红/天蓝/石墨灰）；
+3. 可选：拖动“亮灰/白色压暗”滑杆做出暗色系风格；
+4. 选输出目录（或勾选自动复制到 HOI4 mod 目录）；
+5. 点“开始生成”，等待进度完成，打开输出文件夹：
    - 生成的 Mod 文件夹 + `.mod` 文件
    - `preview.png` —— 原版/换色后对照图，不用进游戏即可预览效果
 
@@ -40,23 +41,29 @@ python tno_color_gen.py
 ### 方式二：命令行
 
 ```
-# 生成橙色（TNO 本体 + 汉化 mod 一起处理）
-python tno_color_gen.py --tno "D:\heart of iron\SW00383\langou123\hoi4\mod\2438003901" --overlay "D:\heart of iron\SW00383\langou123\hoi4\mod\2243912940" --preset orange --out TNO_UI_Orange
+# 生成橙色：一次传入所有相关 mod（本体 + 汉化 + LAR），越靠后优先级越高
+python tno_color_gen.py --mods "D:\...\hoi4\mod\2438003901" "D:\...\hoi4\mod\2243912940" "D:\...\hoi4\mod\3256452254" --preset orange --out TNO_UI_Orange
+
+# 不传 --mods：在游戏 mod 目录 / 工作目录下按 descriptor.mod 的 dependencies 自动装配
+python tno_color_gen.py --preset orange --out TNO_UI_Orange
+
+# 旧参数仍可用（--tno = 第一个 mod，--overlay = 追加的高优先级 mod）
+python tno_color_gen.py --tno "D:\...\2438003901" --overlay "D:\...\2243912940" --preset orange --out TNO_UI_Orange
 
 # 指定并行进程数
-python tno_color_gen.py --jobs 4 --color "#F5A524" --out TNO_UI_Gold
+python tno_color_gen.py --mods "D:\...\2438003901" --jobs 4 --color "#F5A524" --out TNO_UI_Gold
 
 # 自定义颜色（纯白，严格按输入色输出）
-python tno_color_gen.py --color "#FFFFFF" --out TNO_UI_White
+python tno_color_gen.py --mods "D:\...\2438003901" --color "#FFFFFF" --out TNO_UI_White
 
 # 暗色系风格（把白色压暗 40%）
-python tno_color_gen.py --tno 2980739000 --overlay 2243912940 --color "#654680" --darken 0.4 --out TNO_UI_DarkPurple
+python tno_color_gen.py --mods "D:\...\2438003901" --color "#654680" --darken 0.4 --out TNO_UI_DarkPurple
 
 # 只扫描不生成：列出会被改色的文件
-python tno_color_gen.py --tno 2980739000 --preset orange --scan-only --list
+python tno_color_gen.py --mods "D:\...\2438003901" --preset orange --scan-only --list
 
 # 生成后直接复制到 HOI4 mod 目录
-python tno_color_gen.py --tno 2980739000 --preset red --install
+python tno_color_gen.py --mods "D:\...\2438003901" --preset red --install
 ```
 
 ## 安装生成的 Mod
@@ -89,7 +96,7 @@ TNO 界面贴图（`.dds` 绝大多数为未压缩 32 位 BGRA，另有少量 24
 
 ## 覆盖范围与过滤规则
 
-扫描多个源目录的 `gfx/`（本体 + 汉化/UI 覆盖 mod，同名文件以高优先级为准），
+扫描所有输入 mod 的 `gfx/`（TNO 本体 + 汉化 / 任意 sub mod，同名文件以优先级高的为准），
 把蓝色像素占比 ≥0.6% 且数量 ≥12 的贴图全部换色。以下内容一律**不处理**：
 
 - `event_pictures` / `superevent_pictures` / `loadingscreens` / `background` /
@@ -114,11 +121,12 @@ TNO 界面贴图（`.dds` 绝大多数为未压缩 32 位 BGRA，另有少量 24
 
 ## 目录内容
 
-- `tno_color_gen.py` —— 生成器（单文件，含 CLI + GUI；自动检测游戏 mod 目录里的 TNO 本体）
+- `tno_color_gen.py` —— 生成器（单文件，含 CLI + GUI；不传路径时在游戏 mod 目录 /
+  工作目录下按 `descriptor.mod` 的 `dependencies` 自动装配全部相关 mod）
 - `test_transform.py` / `test_codec.py` / `test_dxt5.py` / `verify_v2.py` / `verify_gold.py` —— 自检脚本
 - 换色素材源（游戏目录）：`D:\heart of iron\SW00383\langou123\hoi4\mod\2438003901`（TNO 本体）、
   `2243912940`（汉化）、`3256452254`（道阻且长 LAR）—— 生成时全部作为源参与换色，
-  同名贴图以高优先级为准
+  同名贴图以高优先级为准；GUI/CLI 也可手动传入任意 mod 组合（越靠后优先级越高）
 - `generated_mods/` —— 已生成示例（源 = TNO 本体 + 汉化 + LAR）：
   `TNO_UI_GOLD`（亮金 #F5A524）、`TNO_UI_FFBA5C`（橙）、`TNO_UI_DarkPurple`（深紫）、
   `TNO_UI_White`（纯白），每个约 460 MB、14300 张贴图，可直接放入 mod 目录使用

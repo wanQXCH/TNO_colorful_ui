@@ -15,3 +15,8 @@ gold_report.txt
 2243912940/
 2870558394/
 2871004535/
+
+# 生成产物/压缩包
+generated_*.zip
+TNO_UI_*/
+GeneratedMods.zip
