@@ -993,13 +993,16 @@ EXCLUDE_DIRS = {
 # 国策图标（goals/**）整体排除，但白名单内的占位/通用图标仍需换色
 GOAL_WHITELIST = {'goal_unknown.dds'}
 
-# 按文件名模式保护的贴图（饼图/船坞图标等语义色块，不应被目标色替代）
+# 按文件名模式保护的贴图（饼图等语义色块，不应被目标色替代）
 # pie 匹配需避开 Pierre/Pieter/Pieces/Pierce/Pied 等单词
-# 注：只保护生产界面/地图上的船坞图标（dockyard_icon*），
-# 船坞生产队列里的舰船条目等仍正常换色（用户要求）
 PROTECT_PATTERNS = [
     re.compile(r'(?:^|[^a-z])pie(?:chart|_|[^a-z]|$)'),   # 饼图 pie/piechart/pie_*/_pie
-    re.compile(r'dockyard'),                              # 生产界面/地图的船坞图标
+]
+
+# “未启用/禁用”状态贴图：换色后整体转为灰度，与启用状态的鲜艳目标色区分
+# （如生产界面船坞图标：dockyard_icon.dds 为启用、*_metal 为未启用）
+DISABLED_STYLE_PATTERNS = [
+    re.compile(r'dockyard.*_metal'),
 ]
 
 BLUE_MIN_COUNT = 12      # 至少这么多蓝色像素
@@ -1142,6 +1145,23 @@ def collect_file_map(roots):
     return file_map
 
 
+def gray_out(bgra_bytes, w, h):
+    """把整张贴图转为灰度（保留明度与 alpha）——用于“未启用/禁用”状态贴图，
+    与启用状态的鲜艳目标色形成明显区分。"""
+    if HAS_NUMPY:
+        a = _np.frombuffer(bgra_bytes, dtype=_np.uint8).astype(_np.float32).reshape(-1, 4)
+        lum = 0.299 * a[:, 2] + 0.587 * a[:, 1] + 0.114 * a[:, 0]
+        a[:, 0] = a[:, 1] = a[:, 2] = lum
+        return _np.clip(a, 0, 255).astype(_np.uint8).tobytes()
+    out = bytearray(len(bgra_bytes))
+    for i in range(0, len(bgra_bytes), 4):
+        b, g_, r_, a = bgra_bytes[i:i + 4]
+        lum = int(0.299 * r_ + 0.587 * g_ + 0.114 * b_ + 0.5)
+        out[i] = out[i + 1] = out[i + 2] = lum
+        out[i + 3] = a
+    return bytes(out)
+
+
 def _process_one(item):
     """多进程工作单元：处理单个贴图。返回 (action, rel, ...)。
     action: blue/skip/photo/tiny/error。"""
@@ -1174,6 +1194,11 @@ def _process_one(item):
             return ("skip", rel)
         l_hi = inband_l_hi(bgra, w, h)
         nb = apply_transform(params, bgra, w, h, l_hi=l_hi)
+        # “未启用/禁用”状态贴图：换色后整体转灰度，与启用状态区分
+        for dp_ in DISABLED_STYLE_PATTERNS:
+            if dp_.search(base):
+                nb = gray_out(nb, w, h)
+                break
         ch, vis = count_changed(nb, bgra, w, h)
         if ch < MIN_CHANGE_PX:
             return ("tiny", rel)
