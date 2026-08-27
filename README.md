@@ -100,8 +100,10 @@ TNO 界面贴图（`.dds` 绝大多数为未压缩 32 位 BGRA，另有少量 24
   **领袖头像/照片**（`gfx/leaders/**`）、**国旗类贴图**（文件名含 flag）——保持原样
 - **照片/大幅背景**（采样去重色数 > 4000，如主菜单背景、选国背景、事件纸张、
   实拍照片、人像）——整体跳过，天空/水面等局部蓝色不会被目标色替代
-- **饼图/船坞等按名称模式保护的贴图**（文件名含 pie/piechart/pie_、dockyard）——
-  语义色块保持原色（自动避开 Pierre/Pieces 等误伤）
+- **饼图/船坞/舰船等按名称模式保护的贴图**：文件名含 pie/piechart/pie_、dockyard/
+  shipyard、naval_production（船坞生产队列）、naval_equipment（舰船卡片）、
+  navalrepair（船坞修理）、naval_unit_ship（舰队舰船条目）——语义色块保持原色
+  （自动避开 Pierre/Pieces 等误伤）
 - **换色后几乎无变化的贴图**（可见像素变化 < 30 个）不打包——输出里每个文件
   都是真正变了色的
 
