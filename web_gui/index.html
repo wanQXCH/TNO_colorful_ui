@@ -377,13 +377,6 @@
       </div>
       <div class="hint" style="margin:-4px 0 12px 126px">暗色系风格：把<b>原图里</b>亮灰/白色（纸张、按钮斜面、白色文字底）平滑压暗。
         它<b>不改变</b>你选的目标颜色，只让界面整体偏暗——0% = 完全不压（推荐先用 40~60% 感受一下）。</div>
-      <div class="opt-row">
-        <label>旗帜换色强度</label>
-        <input type="range" id="flagRange" min="0" max="100" value="40">
-        <span class="val" id="flagVal">40%</span>
-      </div>
-      <div class="hint" style="margin:-4px 0 12px 126px">旗帜也参与换色，但用<b>淡颜色滤镜</b>（换色结果与原图按此比例混合）：
-        0% = 旗帜完全不换（保持国旗原色）；蓝/青旗全换色会混出绿，建议 20~50%。</div>
       <label class="check">
         <input type="checkbox" id="compressChk">
         <span class="check-t">压缩输出 DXT5<span class="check-s">体积约小 4 倍；但 4×4 块状压缩会在细线条/渐变上产生噪点与明暗条纹，不推荐——默认未压缩 32 位（与 TNO 本体完全一致）</span></span>
@@ -806,24 +799,6 @@ function renderPvStrip() {
     item.title = `原 rgb(${r},${g},${b}) → 后 rgb(${or},${og},${ob})${changed ? '' : '（不改变）'}`;
     grid.appendChild(item);
   }
-  // 旗帜样本：换色结果按“旗帜换色强度”与原图混合（淡颜色滤镜）
-  {
-    const t = parseInt($('flagRange').value) / 100;
-    const fr = 36, fg = 60, fb = 200;
-    const ft = COLORLIB.transformPixel(params, fr, fg, fb) || [fr, fg, fb];
-    const fo = t <= 0 ? [fr, fg, fb]
-      : ft.map((v, i) => Math.round(v * t + [fr, fg, fb][i] * (1 - t)));
-    const item = document.createElement('div');
-    item.className = 'pv-item';
-    item.innerHTML = `<div class="pv-name">蓝色国旗 · 强度${Math.round(t * 100)}%</div>
-      <div class="pv-pair">
-        <div class="pv-chip" style="background:rgb(${fr},${fg},${fb})"></div>
-        <span class="pv-arrow">→</span>
-        <div class="pv-chip" style="background:rgb(${fo.join(',')});${t > 0 ? '' : 'opacity:.55'}"></div>
-      </div>`;
-    item.title = `蓝旗原 rgb(${fr},${fg},${fb}) → 淡色滤镜后 rgb(${fo.join(',')})（强度 ${Math.round(t * 100)}%）`;
-    grid.appendChild(item);
-  }
 }
 
 /* ================= Mod 目录 ================= */
@@ -905,7 +880,6 @@ async function startJob() {
   const payload = {
     mods, color: hx, mode,
     darken: parseInt($('darkenRange').value) / 100,
-    flag_blend: parseInt($('flagRange').value) / 100,
     compress: $('compressChk').checked,
     jobs: parseInt($('jobsSel').value),
     out,
@@ -1009,10 +983,6 @@ $('assembleBtn').onclick = async () => {
 $('browseOutBtn').onclick = () => pickDir(d => { $('outIn').value = d; });
 $('darkenRange').oninput = e => {
   $('darkenVal').textContent = e.target.value + '%';
-  renderPvStrip();
-};
-$('flagRange').oninput = e => {
-  $('flagVal').textContent = e.target.value + '%';
   renderPvStrip();
 };
 $('nameIn').addEventListener('input', () => { $('nameIn').dataset.touched = '1'; });

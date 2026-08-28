@@ -77,14 +77,12 @@ def _band_weight(hdeg):
     return 0.0
 
 
-def make_params(target_rgb, darken_whites=0.0, flag_blend=0.4):
+def make_params(target_rgb, darken_whites=0.0):
     """由目标颜色构造变换参数。
     映射 = 色相旋转 + 饱和度缩放 + 亮度映射：
     - 参考蓝 (89,199,194) 恰好变成目标色（h/s/l 三通道对齐）；
     - 原贴图的色相/饱和层次完整保留（渐变不断层、不糊成一团）；
-    - 目标明度过亮时（纯白/亮金）压缩扩张系数并按贴图自身亮度分布拉伸亮部。
-    flag_blend: 旗帜换色强度 0~1（0 = 旗帜完全不换保持原色；1 = 全换色；
-    中间值 = 换色结果与原图混合的“淡颜色滤镜”，避免蓝/青旗混出绿等诡异色）。"""
+    - 目标明度过亮时（纯白/亮金）压缩扩张系数并按贴图自身亮度分布拉伸亮部。"""
     ref_h, ref_l, ref_s = colorsys.rgb_to_hls(*(c / 255.0 for c in REF_BLUE))
     t_h, t_l, t_s = colorsys.rgb_to_hls(*(c / 255.0 for c in target_rgb))
     k = max(1.0, t_l / MAX_ANCHOR_L)
@@ -95,7 +93,6 @@ def make_params(target_rgb, darken_whites=0.0, flag_blend=0.4):
         "sat_scale": (t_s / ref_s) if ref_s > 0 else 0.0,
         "k": k,
         "darken": max(0.0, min(1.0, darken_whites)),
-        "flag_blend": max(0.0, min(1.0, flag_blend)),
     }
 
 
@@ -700,31 +697,17 @@ def read_tga(path):
     h = struct.unpack_from('<H', b, 14)[0]
     depth = b[16]
     desc = b[17]
-    if depth == 32:
-        bpp = 4
-    elif depth == 24:
-        bpp = 3          # 24 位：BGR 三元组，无 alpha
-    else:
+    if depth != 32:
         raise ValueError("unsupported tga depth %d" % depth)
     off = 18 + idlen
-    need = w * h * bpp
+    need = w * h * 4
     px = b[off:off + need]
     if len(px) < need:
         raise ValueError("tga data too short")
-    if depth == 24:
-        # 扩展为 BGRA（alpha=255），与 32 位路径一致
-        n = w * h
-        data = bytearray(n * 4)
-        for i in range(n):
-            data[i * 4:i * 4 + 3] = px[i * 3:i * 3 + 3]
-            data[i * 4 + 3] = 255
-        data = bytes(data)
-    else:
-        data = px
     if desc & 0x20:          # 自顶向下
-        data = data
+        data = px
     else:                    # 自底向上，翻转
-        data = b"".join(data[y * w * 4:(y + 1) * w * 4] for y in range(h - 1, -1, -1))
+        data = b"".join(px[y * w * 4:(y + 1) * w * 4] for y in range(h - 1, -1, -1))
     return w, h, data, b[:18]
 
 
@@ -1002,10 +985,9 @@ def patch_font_colors(roots, out_root, params):
 # 扫描与生成
 # ---------------------------------------------------------------------------
 
-# 不处理的目录（艺术图/模型/照片/字体图集/领袖头像等）
-# 注：国旗目录不再排除——旗帜按 flag_blend 强度做“淡颜色滤镜”（见 _process_one）
+# 不处理的目录（艺术图/模型/照片/字体图集/领袖头像/国旗等）
 EXCLUDE_DIRS = {
-    'event_pictures', 'superevent_pictures', 'loadingscreens',
+    'event_pictures', 'superevent_pictures', 'loadingscreens', 'flags',
     'background', 'custom_news_headers', 'fonts', 'FX', 'particles',
     'entities', 'train_gfx_database', 'models',
     'leaders',        # 领袖头像/照片
@@ -1183,29 +1165,6 @@ def gray_out(bgra_bytes, w, h):
     return bytes(out)
 
 
-def mix_tint(new_bgra, orig_bgra, t):
-    """淡色调滤镜：把换色结果与原始图按 t 混合（t=1 全换色，t=0 保留原图）。
-    用于旗帜等语义色贴图——完整换色会让蓝/青旗混出绿等诡异色，
-    混合保留原图本色，只叠加 t 比例的目标色倾向。"""
-    if t >= 0.9999:
-        return new_bgra
-    if HAS_NUMPY:
-        a = _np.frombuffer(orig_bgra, dtype=_np.uint8).astype(_np.float32).reshape(-1, 4)
-        b = _np.frombuffer(new_bgra, dtype=_np.uint8).astype(_np.float32).reshape(-1, 4)
-        out = b * t + a * (1.0 - t)
-        out[:, 3] = a[:, 3]
-        return _np.clip(out, 0, 255).astype(_np.uint8).tobytes()
-    out = bytearray(len(new_bgra))
-    for i in range(0, len(new_bgra), 4):
-        ob, og, orr, oa = orig_bgra[i:i + 4]
-        nb, ng, nr, na = new_bgra[i:i + 4]
-        out[i] = int(nb * t + ob * (1.0 - t) + 0.5)
-        out[i + 1] = int(ng * t + og * (1.0 - t) + 0.5)
-        out[i + 2] = int(nr * t + orr * (1.0 - t) + 0.5)
-        out[i + 3] = oa
-    return bytes(out)
-
-
 def _process_one(item):
     """多进程工作单元：处理单个贴图。返回 (action, rel, ...)。
     action: blue/skip/photo/tiny/error。"""
@@ -1215,13 +1174,10 @@ def _process_one(item):
         if kind is None:
             return ("skip", rel)
         base = os.path.basename(rel).lower()
-        # 旗帜分类：文件名或任意路径段含 flag（覆盖 gfx\flags\XXX.tga、flag_* 组件、
-        # 旗帜选择界面等）。旗帜按 flag_blend 强度做淡颜色滤镜：
-        # 0 = 完全不换（保持各国国旗原色），>0 = 换色结果与原图混合（防蓝/青旗变绿）
-        is_flag = ('flag' in base or
-                   any('flag' in seg for seg in rel.lower().split(os.sep)))
-        flag_blend = float(params.get("flag_blend", 0.4))
-        if is_flag and flag_blend <= 0:
+        # 国旗/旗帜类贴图一律不换色（保留各国国旗原色——蓝色国旗+金色目标色会混成
+        # 诡异的绿/浑浊色调）：文件名或任意路径段含 flag 都跳过（覆盖 gfx\flags\XXX.tga、
+        # flag_* 组件、旗帜选择界面等任何存放方式）
+        if 'flag' in base or any('flag' in seg for seg in rel.lower().split(os.sep)):
             return ("skip", rel)
         # 饼图/船坞等按名称模式保护的贴图
         for pp in PROTECT_PATTERNS:
@@ -1243,9 +1199,6 @@ def _process_one(item):
             return ("skip", rel)
         l_hi = inband_l_hi(bgra, w, h)
         nb = apply_transform(params, bgra, w, h, l_hi=l_hi)
-        # 旗帜：淡颜色滤镜——换色结果与原图按 flag_blend 混合，避免蓝/青旗混出绿
-        if is_flag and flag_blend < 1.0:
-            nb = mix_tint(nb, bgra, flag_blend)
         # “未启用/禁用”状态贴图：换色后整体转灰度，与启用状态区分
         for dp_ in DISABLED_STYLE_PATTERNS:
             if dp_.search(base):
@@ -1507,12 +1460,11 @@ def mod_deps_from_descriptor(root):
 
 def generate_mod(roots, target_rgb, out_root, mod_name=None, darken=0.0,
                  compress=False, jobs=0, progress_cb=None, log_cb=None,
-                 cancel_event=None, flag_blend=0.4):
+                 cancel_event=None):
     """roots: 源目录列表（第一个为基础 TNO，后面的汉化/UI 覆盖 mod 优先级更高）。
-    jobs: 并行进程数（0=自动）。cancel_event: 可选，置位后中止并返回部分统计。
-    flag_blend: 旗帜换色强度 0~1（0=不换，1=全换，默认 0.4 淡滤镜）。"""
+    jobs: 并行进程数（0=自动）。cancel_event: 可选，置位后中止并返回部分统计。"""
     log = log_cb or (lambda s: None)
-    params = make_params(target_rgb, darken, flag_blend)
+    params = make_params(target_rgb, darken)
     if mod_name is None:
         mod_name = "TNO UI #%02X%02X%02X GUI" % target_rgb
     out_root = os.path.abspath(out_root)
@@ -1729,9 +1681,6 @@ def cli_main(argv):
     ap.add_argument('--out', help='输出目录')
     ap.add_argument('--name', help='Mod 显示名')
     ap.add_argument('--darken', type=float, default=0.0, help='亮灰/白压暗强度 0~1(暗色系风格)')
-    ap.add_argument('--flag-blend', type=float, default=0.4,
-                    help='旗帜换色强度 0~1（默认 0.4=淡颜色滤镜：换色结果与原图混合，'
-                         '避免蓝/青旗混出绿；0=旗帜完全不换）')
     ap.add_argument('--install', action='store_true', help='生成后复制到 HOI4 mod 目录')
     ap.add_argument('--compress', action='store_true', help='输出 DXT5 压缩 DDS（体积约小 4 倍，但块状压缩可能产生噪点/条纹，不推荐）')
     ap.add_argument('--jobs', type=int, default=0,
@@ -1768,7 +1717,7 @@ def cli_main(argv):
         print("请用 --color 或 --preset 指定颜色。")
         return 1
     if args.scan_only:
-        params = make_params(target, args.darken, args.flag_blend)
+        params = make_params(target, args.darken)
         print("扫描 %s ..." % " + ".join(roots))
         stats, jobs = scan_and_build(roots, params, os.path.join(roots[0], '.scan_tmp'),
                                      log_cb=print, want_list=args.list, dry_run=True,
@@ -1783,7 +1732,7 @@ def cli_main(argv):
     log = lambda s: print(s)
     stats, jobs = generate_mod(roots, target, out, mod_name=mod_name,
                                darken=args.darken, compress=args.compress,
-                               jobs=args.jobs, flag_blend=args.flag_blend,
+                               jobs=args.jobs,
                                progress_cb=lambda i, n, b: None, log_cb=log)
     print("\n生成完成: %s" % out)
     print("共改色 %d 个贴图，输出体积 %.1f MB" % (stats["blue"], stats["changed_bytes"] / 1048576))
@@ -1891,16 +1840,9 @@ def gui_main():
     darken_lbl = ttk.Label(opt, text="0%")
     darken_lbl.grid(row=0, column=2)
     darken_var.trace_add('write', lambda *a: darken_lbl.configure(text="%d%%" % int(darken_var.get() * 100)))
-    flag_var = tk.DoubleVar(value=0.4)
-    ttk.Label(opt, text="旗帜换色强度（0=不换）:").grid(row=0, column=3, sticky='w', padx=(18, 0))
-    flag_scale = ttk.Scale(opt, from_=0, to=1, variable=flag_var, length=160)
-    flag_scale.grid(row=0, column=4, sticky='w')
-    flag_lbl = ttk.Label(opt, text="40%")
-    flag_lbl.grid(row=0, column=5)
-    flag_var.trace_add('write', lambda *a: flag_lbl.configure(text="%d%%" % int(flag_var.get() * 100)))
     compress_var = tk.BooleanVar(value=False)
     ttk.Checkbutton(opt, text="压缩输出 DXT5（体积约小 4 倍，但可能产生噪点/条纹；默认不勾选=未压缩，与 TNO 本体一致）",
-                    variable=compress_var).grid(row=1, column=0, columnspan=6, sticky='w')
+                    variable=compress_var).grid(row=1, column=0, columnspan=3, sticky='w')
 
     # 输出
     ttk.Label(frm, text="输出:").grid(row=6, column=0, sticky='w', **pad)
@@ -1945,12 +1887,12 @@ def gui_main():
 
     q = queue.Queue()
 
-    def worker(roots, target, out, darken, compress, install, flag_blend):
+    def worker(roots, target, out, darken, compress, install):
         try:
             mod_name = "TNO UI #%02X%02X%02X GUI" % target
             stats, _ = generate_mod(
                 roots, target, out, mod_name=mod_name, darken=darken,
-                compress=compress, flag_blend=flag_blend,
+                compress=compress,
                 progress_cb=lambda i, n, b: q.put(("prog", i, n, b)),
                 log_cb=lambda s: q.put(("log", s)))
             q.put(("done", stats))
@@ -1999,7 +1941,7 @@ def gui_main():
         log("开始生成…")
         t = threading.Thread(target=worker, args=(
             roots, target, out, darken_var.get(), compress_var.get(),
-            install_var.get(), flag_var.get()),
+            install_var.get()),
             daemon=True)
         t.start()
         poll()
