@@ -1174,8 +1174,10 @@ def _process_one(item):
         if kind is None:
             return ("skip", rel)
         base = os.path.basename(rel).lower()
-        # 国旗类贴图一律不换色（保持各国国旗原色）
-        if 'flag' in base:
+        # 国旗/旗帜类贴图一律不换色（保留各国国旗原色——蓝色国旗+金色目标色会混成
+        # 诡异的绿/浑浊色调）：文件名或任意路径段含 flag 都跳过（覆盖 gfx\flags\XXX.tga、
+        # flag_* 组件、旗帜选择界面等任何存放方式）
+        if 'flag' in base or any('flag' in seg for seg in rel.lower().split(os.sep)):
             return ("skip", rel)
         # 饼图/船坞等按名称模式保护的贴图
         for pp in PROTECT_PATTERNS:
