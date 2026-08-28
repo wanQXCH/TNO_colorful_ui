@@ -1008,6 +1008,15 @@ DISABLED_STYLE_PATTERNS = [
     re.compile(r'dockyard.*_metal'),
 ]
 
+# 旗帜覆盖层/框架光效白名单：TNO 国旗上那层“霓虹蓝”是 UI 光效贴图（低透明度、
+# 蓝青渐变，罩在国旗图案上），不属于旗帜本体——应参与换色（霓虹蓝→目标色）。
+# 它们名字含 flag，会被下面的旗帜保护规则误拦，这里优先放行。
+# （匹配 flag_overlay / flag_frame / flag_progbar / *_flag_overlay 等；不匹配
+#   flag_argentina 等国家旗帜图案、flag_blank 空白旗等语义贴图）
+FLAG_OVERLAY_PATTERNS = [
+    re.compile(r'flag_(?:overlay|frame|progbar)', re.I),
+]
+
 BLUE_MIN_COUNT = 12      # 至少这么多蓝色像素
 BLUE_MIN_FRAC = 0.006    # 且占非透明像素比例不低于此
 MIN_CHANGE_PX = 30       # 换色后可见像素变化少于这个数视为“几乎没变”，不打包
@@ -1174,10 +1183,12 @@ def _process_one(item):
         if kind is None:
             return ("skip", rel)
         base = os.path.basename(rel).lower()
-        # 国旗/旗帜类贴图一律不换色（保留各国国旗原色——蓝色国旗+金色目标色会混成
-        # 诡异的绿/浑浊色调）：文件名或任意路径段含 flag 都跳过（覆盖 gfx\flags\XXX.tga、
-        # flag_* 组件、旗帜选择界面等任何存放方式）
-        if 'flag' in base or any('flag' in seg for seg in rel.lower().split(os.sep)):
+        # 旗帜覆盖层/框架光效（霓虹蓝“罩层”）属于 UI 色调——放行参与换色；
+        # 其余文件名或路径段含 flag 的一律保护（国家旗帜图案、空白旗等语义贴图）
+        if any(pp.search(base) for pp in FLAG_OVERLAY_PATTERNS):
+            pass
+        elif ('flag' in base or
+              any('flag' in seg for seg in rel.lower().split(os.sep))):
             return ("skip", rel)
         # 饼图/船坞等按名称模式保护的贴图
         for pp in PROTECT_PATTERNS:
@@ -1190,9 +1201,11 @@ def _process_one(item):
         if bgra is None:
             return ("skip", rel)
         # 照片/大幅背景识别：采样去重色数过高视为照片（天空/水面等局部蓝色不换色）；
-        # 大图（面积超过阈值）收紧复杂度阈值，避免大幅背景被误处理
+        # 大图（面积超过阈值）收紧复杂度阈值，避免大幅背景被误处理。
+        # 旗帜覆盖层白名单文件（UI 光效渐变，确定非照片）豁免此规则
+        is_overlay = any(pp.search(base) for pp in FLAG_OVERLAY_PATTERNS)
         tc = texture_complexity(bgra, w, h)
-        if tc > PHOTO_MAX_COLORS or (w * h > PHOTO_MIN_AREA and tc > PHOTO_MAX_COLORS_LARGE):
+        if not is_overlay and (tc > PHOTO_MAX_COLORS or (w * h > PHOTO_MIN_AREA and tc > PHOTO_MAX_COLORS_LARGE)):
             return ("photo", rel)
         blue, opaque = count_blue(bgra, w, h)
         if blue < BLUE_MIN_COUNT or (blue / max(1, opaque)) < BLUE_MIN_FRAC:
