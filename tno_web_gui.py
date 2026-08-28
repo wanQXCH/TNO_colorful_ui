@@ -103,11 +103,13 @@ def _run_job(job):
         target = gen.parse_color(p.get('color', ''))
         darken = float(p.get('darken', 0.0) or 0.0)
         darken = min(1.0, max(0.0, darken))
+        flag_blend = float(p.get('flag_blend', 0.4) if p.get('flag_blend') is not None else 0.4)
+        flag_blend = min(1.0, max(0.0, flag_blend))
         compress = bool(p.get('compress'))
         jobs_n = int(p.get('jobs', 0) or 0)
 
         if job.kind == 'scan':
-            params = gen.make_params(target, darken)
+            params = gen.make_params(target, darken, flag_blend)
             job.log_line('扫描 %s ...' % ' + '.join(os.path.abspath(r) for r in roots))
             stats, _ = gen.scan_and_build(
                 roots, params, os.path.join(roots[0], '.scan_tmp'),
@@ -122,7 +124,7 @@ def _run_job(job):
             job.out = os.path.abspath(out)
             stats, _ = gen.generate_mod(
                 roots, target, job.out, mod_name=mod_name, darken=darken,
-                compress=compress, jobs=jobs_n,
+                compress=compress, jobs=jobs_n, flag_blend=flag_blend,
                 progress_cb=job.set_progress, log_cb=job.log_line,
                 cancel_event=job.cancel)
             job.stats = stats
